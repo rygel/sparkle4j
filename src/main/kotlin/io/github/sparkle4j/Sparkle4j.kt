@@ -66,8 +66,7 @@ interface Sparkle4jInstance {
 object Sparkle4j {
 
     /** Kotlin DSL. */
-    fun configure(block: Sparkle4jBuilder.() -> Unit): Sparkle4jInstance =
-        Sparkle4jBuilder().apply(block).build()
+    fun configure(block: Sparkle4jBuilder.() -> Unit): Sparkle4jInstance = Sparkle4jBuilder().apply(block).build()
 
     /** Java fluent-builder entry point. */
     @JvmStatic
@@ -111,7 +110,7 @@ class Sparkle4jBuilder {
                 appName = appName,
                 onUpdateFound = onUpdateFound,
                 macosAppPath = macosAppPath,
-            )
+            ),
         )
     }
 }
@@ -127,40 +126,54 @@ private class Sparkle4jInstanceImpl(private val config: Sparkle4jConfig) : Spark
     private val executor = Executors.newSingleThreadExecutor { r ->
         Thread(r, "sparkle4j-checker").also { it.isDaemon = true }
     }
-    private val prefs    = UpdatePreferences(config.appName)
-    private val fetcher  = AppcastFetcher()
-    private val parser   = AppcastParser()
+    private val prefs = UpdatePreferences(config.appName)
+    private val fetcher = AppcastFetcher()
+    private val parser = AppcastParser()
     private val verifier = SignatureVerifier(config.publicKey)
-    private val applier  = UpdateApplier(config)
+    private val applier = UpdateApplier(config)
 
+    // Top-level safety net: the library must never crash the host app (design doc §Error Handling)
+    @Suppress("TooGenericExceptionCaught")
     override fun checkInBackground() {
         executor.submit {
             try {
                 val item = checkNow() ?: return@submit
                 SwingUtilities.invokeLater { presentUpdate(item) }
-            } catch (e: Exception) {
+            } catch (e: RuntimeException) {
                 log.warning("Unexpected error during background update check: ${e.message}")
             }
         }
     }
 
     override fun checkNow(): UpdateItem? {
-        // Honour check interval
+        if (!isCheckDue()) return null
+        val best = fetchAndParseBestUpdate() ?: return null
+        if (prefs.isSkipped(best.version)) return null
+        if (!VersionComparator.isNewer(best.version, config.currentVersion)) return null
+        return best
+    }
+
+    private fun isCheckDue(): Boolean {
         if (config.checkIntervalHours > 0) {
             val last = prefs.lastCheckTimestamp
             if (last != null && Duration.between(last, Instant.now()).toHours() < config.checkIntervalHours) {
-                return null
+                return false
             }
         }
-
         if (!config.appcastUrl.startsWith("https://")) {
             log.severe("Appcast URL must be HTTPS: ${config.appcastUrl}")
-            return null
+            return false
         }
+        return true
+    }
 
+    // Broad catches intentional: XML parsing and HTTP can throw various unchecked exceptions,
+    // and the library must never propagate errors to the host app (design doc §Error Handling)
+    @Suppress("TooGenericExceptionCaught")
+    private fun fetchAndParseBestUpdate(): UpdateItem? {
         val xml = try {
             fetcher.fetch(config.appcastUrl)
-        } catch (e: Exception) {
+        } catch (e: RuntimeException) {
             log.warning("Failed to fetch appcast: ${e.message}")
             return null
         } ?: return null
@@ -169,33 +182,28 @@ private class Sparkle4jInstanceImpl(private val config: Sparkle4jConfig) : Spark
 
         val items = try {
             parser.parse(xml)
-        } catch (e: Exception) {
+        } catch (e: RuntimeException) {
+            log.severe("Failed to parse appcast: ${e.message}")
+            return null
+        } catch (e: org.xml.sax.SAXException) {
             log.severe("Failed to parse appcast: ${e.message}")
             return null
         }
 
-        val best = items.firstOrNull() ?: return null
-
-        if (prefs.isSkipped(best.version)) return null
-        if (!VersionComparator.isNewer(best.version, config.currentVersion)) return null
-
-        return best
+        return items.firstOrNull()
     }
 
     override fun applyUpdate(item: UpdateItem) {
         val downloader = UpdateDownloader()
         val tempFile = try {
             downloader.download(item.url, item.length) { _, _ -> }
-        } catch (e: Exception) {
+        } catch (e: java.io.IOException) {
             log.severe("Download failed in applyUpdate: ${e.message}")
-            SwingUtilities.invokeLater {
-                JOptionPane.showMessageDialog(
-                    config.parentComponent,
-                    "Download failed. Try again later.",
-                    "Download Error",
-                    JOptionPane.ERROR_MESSAGE,
-                )
-            }
+            showErrorDialog("Download failed. Try again later.", "Download Error")
+            return
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            log.warning("Download interrupted in applyUpdate")
             return
         }
         installUpdate(item, tempFile)
@@ -207,27 +215,18 @@ private class Sparkle4jInstanceImpl(private val config: Sparkle4jConfig) : Spark
 
     /** Called by the dialog after the download is complete. */
     internal fun installUpdate(item: UpdateItem, tempFile: Path) {
-        if (item.edSignature != null) {
-            if (!verifier.verify(tempFile, item.edSignature)) {
-                log.severe("Signature verification failed for ${item.version} — aborting update")
-                Files.deleteIfExists(tempFile)
-                SwingUtilities.invokeLater {
-                    JOptionPane.showMessageDialog(
-                        config.parentComponent,
-                        "The update could not be verified. It has been discarded for your safety.",
-                        "Verification Failed",
-                        JOptionPane.ERROR_MESSAGE,
-                    )
-                }
-                return
-            }
+        if (item.edSignature != null && !verifier.verify(tempFile, item.edSignature)) {
+            log.severe("Signature verification failed for ${item.version} — aborting update")
+            Files.deleteIfExists(tempFile)
+            showErrorDialog("The update could not be verified. It has been discarded for your safety.", "Verification Failed")
+            return
         }
         applier.apply(item, tempFile)
     }
 
     private fun presentUpdate(item: UpdateItem) {
         val hook = config.onUpdateFound
-        if (hook != null && !hook(item)) return  // caller suppressed built-in dialog
+        if (hook != null && !hook(item)) return // caller suppressed built-in dialog
 
         UpdateDialog(
             config = config,
@@ -236,11 +235,16 @@ private class Sparkle4jInstanceImpl(private val config: Sparkle4jConfig) : Spark
             onInstall = { updateItem, tempFile -> installUpdate(updateItem, tempFile) },
         ).show()
     }
+
+    private fun showErrorDialog(message: String, title: String) {
+        SwingUtilities.invokeLater {
+            JOptionPane.showMessageDialog(config.parentComponent, message, title, JOptionPane.ERROR_MESSAGE)
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-internal fun resolveAppName(): String =
-    Sparkle4jConfig::class.java.`package`?.implementationTitle ?: "Application"
+internal fun resolveAppName(): String = Sparkle4jConfig::class.java.`package`?.implementationTitle ?: "Application"

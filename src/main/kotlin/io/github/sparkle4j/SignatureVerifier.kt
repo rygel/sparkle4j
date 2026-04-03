@@ -46,7 +46,13 @@ internal class SignatureVerifier(private val publicKeyBase64: String?) {
             sig.initVerify(publicKey)
             sig.update(fileBytes)
             sig.verify(signatureBytes)
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
+            log.severe("Signature verification error: ${e.message}")
+            false
+        } catch (e: IllegalArgumentException) {
+            log.severe("Signature verification error: ${e.message}")
+            false
+        } catch (e: java.io.IOException) {
             log.severe("Signature verification error: ${e.message}")
             false
         }
@@ -55,13 +61,13 @@ internal class SignatureVerifier(private val publicKeyBase64: String?) {
     private companion object {
         // DER header for Ed25519 SubjectPublicKeyInfo (RFC 8410): 12 bytes + 32-byte key = 44 bytes total
         val ED25519_DER_HEADER = byteArrayOf(
-            0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00
+            0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
         )
 
         fun toX509KeySpec(keyBytes: ByteArray): X509EncodedKeySpec = when (keyBytes.size) {
-            32   -> X509EncodedKeySpec(ED25519_DER_HEADER + keyBytes) // raw key → wrap in DER
-            44   -> X509EncodedKeySpec(keyBytes)                       // already DER-encoded
-            else -> X509EncodedKeySpec(keyBytes)                       // try as-is; will throw if wrong
+            32 -> X509EncodedKeySpec(ED25519_DER_HEADER + keyBytes) // raw key → wrap in DER
+            44 -> X509EncodedKeySpec(keyBytes) // already DER-encoded
+            else -> X509EncodedKeySpec(keyBytes) // try as-is; will throw if wrong
         }
     }
 }

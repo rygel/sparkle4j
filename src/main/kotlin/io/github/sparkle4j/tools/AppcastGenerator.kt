@@ -44,19 +44,14 @@ fun main(args: Array<String>) {
         System.exit(1)
     }
 
-    val version     = args[0]
+    val version = args[0]
     val appcastPath = Path.of(args[1])
 
-    val privateKeyB64  = requireEnv("SPARKLE_PRIVATE_KEY")
-    val baseUrl        = requireEnv("APPCAST_BASE_URL").trimEnd('/')
-    val appName        = System.getenv("APP_NAME") ?: "Application"
+    val privateKeyB64 = requireEnv("SPARKLE_PRIVATE_KEY")
+    val baseUrl = requireEnv("APPCAST_BASE_URL").trimEnd('/')
+    val appName = System.getenv("APP_NAME") ?: "Application"
     val releaseNotesUrl = System.getenv("RELEASE_NOTES_URL")
-
-    val installers = buildList {
-        System.getenv("INSTALLER_WINDOWS")?.let { add(Installer(Path.of(it), "windows", "exe")) }
-        System.getenv("INSTALLER_MACOS")?.let   { add(Installer(Path.of(it), "macos",   "zip")) }
-        System.getenv("INSTALLER_LINUX")?.let   { add(Installer(Path.of(it), "linux",   detectLinuxExt(it))) }
-    }
+    val installers = collectInstallers()
 
     if (installers.isEmpty()) {
         System.err.println("No installer paths provided via INSTALLER_* environment variables.")
@@ -64,16 +59,33 @@ fun main(args: Array<String>) {
     }
 
     val privateKey = loadPrivateKey(privateKeyB64)
-    val pubDate    = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.RFC_1123_DATE_TIME)
+    val pubDate = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.RFC_1123_DATE_TIME)
+    val enclosures = buildEnclosures(installers, baseUrl, privateKey)
+    val newItem = buildItem(appName, version, pubDate, releaseNotesUrl, enclosures)
 
-    val enclosures = installers.joinToString("\n") { inst ->
-        val bytes     = Files.readAllBytes(inst.path)
-        val sha256    = sha256Hex(bytes)
+    val existing = if (Files.exists(appcastPath)) Files.readString(appcastPath) else minimalRssSkeleton(appName)
+    val updated = insertItem(existing, newItem)
+    appcastPath.parent?.let { Files.createDirectories(it) }
+    Files.writeString(appcastPath, updated)
+
+    println("Appcast updated: $appcastPath (version $version, ${installers.size} enclosure(s))")
+}
+
+private fun collectInstallers(): List<Installer> = buildList {
+    System.getenv("INSTALLER_WINDOWS")?.let { add(Installer(Path.of(it), "windows", "exe")) }
+    System.getenv("INSTALLER_MACOS")?.let { add(Installer(Path.of(it), "macos", "zip")) }
+    System.getenv("INSTALLER_LINUX")?.let { add(Installer(Path.of(it), "linux", detectLinuxExt(it))) }
+}
+
+private fun buildEnclosures(installers: List<Installer>, baseUrl: String, privateKey: java.security.PrivateKey): String =
+    installers.joinToString("\n") { inst ->
+        val bytes = Files.readAllBytes(inst.path)
+        val sha256 = sha256Hex(bytes)
         val signature = sign(bytes, privateKey)
-        val fileName  = inst.path.fileName.toString()
-        val length    = Files.size(inst.path)
-        val url       = "$baseUrl/$fileName"
-        val mimeType  = mimeType(inst.ext)
+        val fileName = inst.path.fileName.toString()
+        val length = Files.size(inst.path)
+        val url = "$baseUrl/$fileName"
+        val mimeType = mimeType(inst.ext)
         """
       <enclosure
         url="$url"
@@ -81,31 +93,21 @@ fun main(args: Array<String>) {
         length="$length"
         type="$mimeType"
         sparkle:edSignature="$signature"
-        sparkle:sha256="$sha256"/>""".trimIndent()
+        sparkle:sha256="$sha256"/>
+        """.trimIndent()
     }
 
+private fun buildItem(appName: String, version: String, pubDate: String, releaseNotesUrl: String?, enclosures: String): String {
     val releaseNotesElement = releaseNotesUrl
         ?.let { "\n      <sparkle:releaseNotesLink>$it</sparkle:releaseNotesLink>" } ?: ""
-
-    val newItem = """
+    return """
     <item>
       <title>$appName $version</title>
       <pubDate>$pubDate</pubDate>
       <sparkle:version>$version</sparkle:version>$releaseNotesElement
       $enclosures
-    </item>""".trimIndent()
-
-    val existing = if (Files.exists(appcastPath)) {
-        Files.readString(appcastPath)
-    } else {
-        minimalRssSkeleton(appName)
-    }
-
-    val updated = insertItem(existing, newItem)
-    appcastPath.parent?.let { Files.createDirectories(it) }
-    Files.writeString(appcastPath, updated)
-
-    println("Appcast updated: $appcastPath (version $version, ${installers.size} enclosure(s))")
+    </item>
+    """.trimIndent()
 }
 
 // ---------------------------------------------------------------------------
@@ -114,15 +116,13 @@ fun main(args: Array<String>) {
 
 private data class Installer(val path: Path, val os: String, val ext: String)
 
-private fun requireEnv(name: String): String =
-    System.getenv(name) ?: error("Required environment variable not set: $name")
+private fun requireEnv(name: String): String = System.getenv(name) ?: error("Required environment variable not set: $name")
 
-private fun detectLinuxExt(path: String): String =
-    if (path.endsWith(".rpm")) "rpm" else "deb"
+private fun detectLinuxExt(path: String): String = if (path.endsWith(".rpm")) "rpm" else "deb"
 
 private fun loadPrivateKey(base64: String): java.security.PrivateKey {
     val bytes = Base64.getDecoder().decode(base64)
-    val spec  = PKCS8EncodedKeySpec(bytes)
+    val spec = PKCS8EncodedKeySpec(bytes)
     return KeyFactory.getInstance("Ed25519").generatePrivate(spec)
 }
 
@@ -133,16 +133,15 @@ private fun sign(data: ByteArray, key: java.security.PrivateKey): String {
     return Base64.getEncoder().encodeToString(sig.sign())
 }
 
-private fun sha256Hex(data: ByteArray): String =
-    MessageDigest.getInstance("SHA-256").digest(data)
-        .joinToString("") { "%02x".format(it) }
+private fun sha256Hex(data: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(data)
+    .joinToString("") { "%02x".format(it) }
 
 private fun mimeType(ext: String): String = when (ext) {
-    "exe"  -> "application/octet-stream"
-    "zip"  -> "application/zip"
-    "deb"  -> "application/vnd.debian.binary-package"
-    "rpm"  -> "application/x-rpm"
-    else   -> "application/octet-stream"
+    "exe" -> "application/octet-stream"
+    "zip" -> "application/zip"
+    "deb" -> "application/vnd.debian.binary-package"
+    "rpm" -> "application/x-rpm"
+    else -> "application/octet-stream"
 }
 
 private fun minimalRssSkeleton(appName: String): String = """<?xml version="1.0" encoding="UTF-8"?>
