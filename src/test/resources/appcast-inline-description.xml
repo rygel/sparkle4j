@@ -15,6 +15,18 @@
         sparkle:os="windows"
         length="100"
         type="application/octet-stream"/>
+
+      <enclosure
+        url="https://example.com/releases/testapp-0.8.0-macos.zip"
+        sparkle:os="macos"
+        length="100"
+        type="application/zip"/>
+
+      <enclosure
+        url="https://example.com/releases/testapp-0.8.0.deb"
+        sparkle:os="linux"
+        length="100"
+        type="application/vnd.debian.binary-package"/>
     </item>
   </channel>
 </rss>
