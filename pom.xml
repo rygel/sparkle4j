@@ -6,7 +6,7 @@
 
     <groupId>io.github.sparkle4j</groupId>
     <artifactId>sparkle4j</artifactId>
-    <version>0.5.0</version>
+    <version>0.6.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>sparkle4j</name>
@@ -33,6 +33,14 @@
         <developerConnection>scm:git:git@github.com:sparkle4j/sparkle4j.git</developerConnection>
         <url>https://github.com/sparkle4j/sparkle4j</url>
     </scm>
+
+    <distributionManagement>
+        <repository>
+            <id>github-rygel</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/rygel/sparkle4j</url>
+        </repository>
+    </distributionManagement>
 
     <properties>
         <kotlin.version>2.1.20</kotlin.version>
