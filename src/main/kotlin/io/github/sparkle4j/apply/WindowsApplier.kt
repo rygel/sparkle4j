@@ -17,7 +17,7 @@ internal class WindowsApplier {
 
         val args = when (item.installerType.lowercase()) {
             "nsis" -> listOf(installerPath.toString(), "/S")
-            else   -> listOf(installerPath.toString(), "/PASSIVE", "/NORESTART")
+            else -> listOf(installerPath.toString(), "/PASSIVE", "/NORESTART")
         }
 
         log.info("Launching installer: $args")

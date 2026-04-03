@@ -13,10 +13,7 @@ import javax.swing.SwingUtilities
  * - No URL: shows "No release notes available."
  * - Network failure: shows "Could not load release notes." — never blocks the dialog.
  */
-internal class ReleaseNotesPanel(
-    private val releaseNotesUrl: String?,
-    private val inlineDescription: String? = null,
-) : JEditorPane() {
+internal class ReleaseNotesPanel(private val releaseNotesUrl: String?, private val inlineDescription: String? = null) : JEditorPane() {
 
     private val log = Logger.getLogger(ReleaseNotesPanel::class.java.name)
 
@@ -50,12 +47,19 @@ internal class ReleaseNotesPanel(
                 } else {
                     content
                 }
-            } catch (e: Exception) {
+            } catch (e: java.io.IOException) {
                 log.warning("Could not load release notes from $releaseNotesUrl: ${e.message}")
+                LOAD_FAILED_HTML
+            } catch (e: IllegalArgumentException) {
+                log.warning("Invalid release notes URL $releaseNotesUrl: ${e.message}")
                 LOAD_FAILED_HTML
             }
             SwingUtilities.invokeLater { text = html }
-        }.also { it.isDaemon = true; it.name = "sparkle4j-release-notes"; it.start() }
+        }.also {
+            it.isDaemon = true
+            it.name = "sparkle4j-release-notes"
+            it.start()
+        }
     }
 
     private fun looksLikeMarkdown(content: String): Boolean {
@@ -63,12 +67,10 @@ internal class ReleaseNotesPanel(
         return first.startsWith("#") || first.startsWith("- ") || first.startsWith("* ")
     }
 
-    private fun markdownToHtml(markdown: String): String {
-        return try {
-            flexmarkConvert(markdown)
-        } catch (_: ClassNotFoundException) {
-            minimalMarkdownToHtml(markdown)
-        }
+    private fun markdownToHtml(markdown: String): String = try {
+        flexmarkConvert(markdown)
+    } catch (_: ClassNotFoundException) {
+        minimalMarkdownToHtml(markdown)
     }
 
     /** Reflective call to flexmark-java so it remains an optional runtime dependency. */
@@ -104,11 +106,11 @@ internal class ReleaseNotesPanel(
                 }
                 inCode -> sb.append(line.htmlEscape()).append('\n')
                 line.startsWith("### ") -> sb.append("<h3>${line.drop(4).inlineFormat()}</h3>")
-                line.startsWith("## ")  -> sb.append("<h2>${line.drop(3).inlineFormat()}</h2>")
-                line.startsWith("# ")   -> sb.append("<h1>${line.drop(2).inlineFormat()}</h1>")
+                line.startsWith("## ") -> sb.append("<h2>${line.drop(3).inlineFormat()}</h2>")
+                line.startsWith("# ") -> sb.append("<h1>${line.drop(2).inlineFormat()}</h1>")
                 line.startsWith("- ") || line.startsWith("* ") -> sb.append("<li>${line.drop(2).inlineFormat()}</li>")
-                line.isBlank()          -> sb.append("<br>")
-                else                    -> sb.append("<p>${line.inlineFormat()}</p>")
+                line.isBlank() -> sb.append("<br>")
+                else -> sb.append("<p>${line.inlineFormat()}</p>")
             }
         }
 
@@ -116,8 +118,7 @@ internal class ReleaseNotesPanel(
         return sb.toString()
     }
 
-    private fun String.htmlEscape(): String =
-        replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    private fun String.htmlEscape(): String = replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
     private fun String.inlineFormat(): String {
         var s = htmlEscape()

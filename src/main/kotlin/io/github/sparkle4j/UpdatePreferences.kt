@@ -21,8 +21,7 @@ internal class UpdatePreferences(appName: String) {
             prefs.putLong(KEY_LAST_CHECK, value?.epochSecond ?: -1L)
         }
 
-    fun isSkipped(version: String): Boolean =
-        skippedVersions().contains(version)
+    fun isSkipped(version: String): Boolean = skippedVersions().contains(version)
 
     fun skipVersion(version: String) {
         val versions = skippedVersions().toMutableSet()
@@ -30,11 +29,10 @@ internal class UpdatePreferences(appName: String) {
         prefs.put(KEY_SKIPPED_VERSIONS, versions.joinToString(","))
     }
 
-    private fun skippedVersions(): Set<String> =
-        prefs.get(KEY_SKIPPED_VERSIONS, "")
-            .split(",")
-            .filter { it.isNotBlank() }
-            .toSet()
+    private fun skippedVersions(): Set<String> = prefs.get(KEY_SKIPPED_VERSIONS, "")
+        .split(",")
+        .filter { it.isNotBlank() }
+        .toSet()
 
     private companion object {
         const val KEY_LAST_CHECK = "lastCheckTimestamp"

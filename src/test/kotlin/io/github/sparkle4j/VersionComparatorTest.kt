@@ -7,21 +7,46 @@ import kotlin.test.assertTrue
 
 class VersionComparatorTest {
 
-    @Test fun `higher major is newer`()           { assertTrue(VersionComparator.isNewer("2.0.0", "1.9.9")) }
-    @Test fun `higher minor is newer`()           { assertTrue(VersionComparator.isNewer("0.7.0", "0.6.0")) }
-    @Test fun `higher patch is newer`()           { assertTrue(VersionComparator.isNewer("1.0.1", "1.0.0")) }
-    @Test fun `higher minor beats lower major`()  { assertFalse(VersionComparator.isNewer("0.10.0", "1.0.0")) }
-    @Test fun `double-digit minor segments`()     { assertTrue(VersionComparator.isNewer("0.10.0", "0.9.0")) }
-    @Test fun `same version is not newer`()       { assertFalse(VersionComparator.isNewer("1.0.0", "1.0.0")) }
-    @Test fun `older is not newer`()              { assertFalse(VersionComparator.isNewer("0.6.0", "0.7.0")) }
+    @Test fun `higher major is newer`() {
+        assertTrue(VersionComparator.isNewer("2.0.0", "1.9.9"))
+    }
+
+    @Test fun `higher minor is newer`() {
+        assertTrue(VersionComparator.isNewer("0.7.0", "0.6.0"))
+    }
+
+    @Test fun `higher patch is newer`() {
+        assertTrue(VersionComparator.isNewer("1.0.1", "1.0.0"))
+    }
+
+    @Test fun `higher minor beats lower major`() {
+        assertFalse(VersionComparator.isNewer("0.10.0", "1.0.0"))
+    }
+
+    @Test fun `double-digit minor segments`() {
+        assertTrue(VersionComparator.isNewer("0.10.0", "0.9.0"))
+    }
+
+    @Test fun `same version is not newer`() {
+        assertFalse(VersionComparator.isNewer("1.0.0", "1.0.0"))
+    }
+
+    @Test fun `older is not newer`() {
+        assertFalse(VersionComparator.isNewer("0.6.0", "0.7.0"))
+    }
 
     @Test fun `pre-release sorts below release`() {
         assertFalse(VersionComparator.isNewer("1.0.0-alpha", "1.0.0"))
         assertTrue(VersionComparator.isNewer("1.0.0", "1.0.0-alpha"))
     }
 
-    @Test fun `beta sorts below release`()  { assertFalse(VersionComparator.isNewer("1.0.0-beta", "1.0.0")) }
-    @Test fun `rc sorts below release`()    { assertFalse(VersionComparator.isNewer("1.0.0-rc.1", "1.0.0")) }
+    @Test fun `beta sorts below release`() {
+        assertFalse(VersionComparator.isNewer("1.0.0-beta", "1.0.0"))
+    }
+
+    @Test fun `rc sorts below release`() {
+        assertFalse(VersionComparator.isNewer("1.0.0-rc.1", "1.0.0"))
+    }
 
     @Test fun `pre-release newer than older release`() {
         assertTrue(VersionComparator.isNewer("1.1.0-alpha", "1.0.0"))
@@ -38,9 +63,9 @@ class VersionComparatorTest {
     }
 
     @Test fun `compare returns correct sign`() {
-        assertEquals(1,  VersionComparator.compare("1.0.0", "0.9.0"))
+        assertEquals(1, VersionComparator.compare("1.0.0", "0.9.0"))
         assertEquals(-1, VersionComparator.compare("0.9.0", "1.0.0"))
-        assertEquals(0,  VersionComparator.compare("1.0.0", "1.0.0"))
+        assertEquals(0, VersionComparator.compare("1.0.0", "1.0.0"))
     }
 
     @Test fun `sort list of versions descending`() {

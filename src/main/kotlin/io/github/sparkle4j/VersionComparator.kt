@@ -22,8 +22,8 @@ object VersionComparator : Comparator<String> {
 
         return when {
             pa.preRelease == null && pb.preRelease == null -> 0
-            pa.preRelease == null -> 1   // release > pre-release
-            pb.preRelease == null -> -1  // pre-release < release
+            pa.preRelease == null -> 1 // release > pre-release
+            pb.preRelease == null -> -1 // pre-release < release
             else -> pa.preRelease.compareTo(pb.preRelease)
         }
     }

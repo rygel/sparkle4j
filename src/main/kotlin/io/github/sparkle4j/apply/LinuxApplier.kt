@@ -16,7 +16,7 @@ internal class LinuxApplier {
         val command = when (ext) {
             "deb" -> listOf("pkexec", "dpkg", "-i", tempFile.toString())
             "rpm" -> listOf("pkexec", "rpm", "-U", tempFile.toString())
-            else  -> null
+            else -> null
         }
 
         if (command != null) {
@@ -32,8 +32,10 @@ internal class LinuxApplier {
         log.info("Unknown installer format ($ext) — opening browser for $item.url")
         try {
             Desktop.getDesktop().browse(URI.create(item.url))
-        } catch (e: Exception) {
+        } catch (e: java.io.IOException) {
             log.warning("Could not open browser: ${e.message}")
+        } catch (e: UnsupportedOperationException) {
+            log.warning("Desktop browsing not supported: ${e.message}")
         }
     }
 }

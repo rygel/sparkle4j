@@ -1,6 +1,12 @@
 package io.github.sparkle4j
 
-import com.github.tomakehurst.wiremock.client.WireMock.*
+import com.github.tomakehurst.wiremock.client.WireMock.aResponse
+import com.github.tomakehurst.wiremock.client.WireMock.absent
+import com.github.tomakehurst.wiremock.client.WireMock.equalTo
+import com.github.tomakehurst.wiremock.client.WireMock.get
+import com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor
+import com.github.tomakehurst.wiremock.client.WireMock.permanentRedirect
+import com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension
 import org.junit.jupiter.api.Test
@@ -23,10 +29,12 @@ class AppcastFetcherTest {
     fun `returns body on 200`() {
         wireMock.stubFor(
             get(urlEqualTo("/appcast.xml"))
-                .willReturn(aResponse()
-                    .withStatus(200)
-                    .withHeader("Content-Type", "application/xml")
-                    .withBody("<rss/>"))
+                .willReturn(
+                    aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/xml")
+                        .withBody("<rss/>"),
+                ),
         )
 
         val result = fetcher.fetch(url("/appcast.xml"))
@@ -40,15 +48,17 @@ class AppcastFetcherTest {
         wireMock.stubFor(
             get(urlEqualTo("/appcast.xml"))
                 .withHeader("If-None-Match", absent())
-                .willReturn(aResponse()
-                    .withStatus(200)
-                    .withHeader("ETag", etag)
-                    .withBody("<rss/>"))
+                .willReturn(
+                    aResponse()
+                        .withStatus(200)
+                        .withHeader("ETag", etag)
+                        .withBody("<rss/>"),
+                ),
         )
         wireMock.stubFor(
             get(urlEqualTo("/appcast.xml"))
                 .withHeader("If-None-Match", equalTo(etag))
-                .willReturn(aResponse().withStatus(304))
+                .willReturn(aResponse().withStatus(304)),
         )
 
         val first = fetcher.fetch(url("/appcast.xml"))
@@ -68,15 +78,17 @@ class AppcastFetcherTest {
         wireMock.stubFor(
             get(urlEqualTo("/appcast.xml"))
                 .withHeader("If-Modified-Since", absent())
-                .willReturn(aResponse()
-                    .withStatus(200)
-                    .withHeader("Last-Modified", lastModified)
-                    .withBody("<rss/>"))
+                .willReturn(
+                    aResponse()
+                        .withStatus(200)
+                        .withHeader("Last-Modified", lastModified)
+                        .withBody("<rss/>"),
+                ),
         )
         wireMock.stubFor(
             get(urlEqualTo("/appcast.xml"))
                 .withHeader("If-Modified-Since", equalTo(lastModified))
-                .willReturn(aResponse().withStatus(304))
+                .willReturn(aResponse().withStatus(304)),
         )
 
         fetcher.fetch(url("/appcast.xml"))
@@ -88,7 +100,7 @@ class AppcastFetcherTest {
     fun `returns null on unexpected HTTP status`() {
         wireMock.stubFor(
             get(urlEqualTo("/appcast.xml"))
-                .willReturn(aResponse().withStatus(500))
+                .willReturn(aResponse().withStatus(500)),
         )
 
         val result = fetcher.fetch(url("/appcast.xml"))
@@ -99,7 +111,7 @@ class AppcastFetcherTest {
     fun `returns null on 404`() {
         wireMock.stubFor(
             get(urlEqualTo("/appcast.xml"))
-                .willReturn(aResponse().withStatus(404))
+                .willReturn(aResponse().withStatus(404)),
         )
 
         assertNull(fetcher.fetch(url("/appcast.xml")))
@@ -116,11 +128,11 @@ class AppcastFetcherTest {
     fun `follows redirect`() {
         wireMock.stubFor(
             get(urlEqualTo("/old-appcast.xml"))
-                .willReturn(permanentRedirect(url("/appcast.xml")))
+                .willReturn(permanentRedirect(url("/appcast.xml"))),
         )
         wireMock.stubFor(
             get(urlEqualTo("/appcast.xml"))
-                .willReturn(aResponse().withStatus(200).withBody("<rss/>"))
+                .willReturn(aResponse().withStatus(200).withBody("<rss/>")),
         )
 
         assertEquals("<rss/>", fetcher.fetch(url("/old-appcast.xml")))

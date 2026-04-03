@@ -28,7 +28,7 @@ internal class MacosApplier {
             currentAppPath.toString(),
             tempFile.toString(),
             ProcessHandle.current().pid().toString(),
-        ).start()  // fire and forget
+        ).start() // fire and forget
 
         exitProcess(0)
     }
@@ -36,8 +36,10 @@ internal class MacosApplier {
     private fun openBrowser(url: String) {
         try {
             Desktop.getDesktop().browse(URI.create(url))
-        } catch (e: Exception) {
+        } catch (e: java.io.IOException) {
             log.warning("Could not open browser: ${e.message}")
+        } catch (e: UnsupportedOperationException) {
+            log.warning("Desktop browsing not supported: ${e.message}")
         }
     }
 }

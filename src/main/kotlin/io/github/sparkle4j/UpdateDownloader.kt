@@ -1,6 +1,8 @@
 package io.github.sparkle4j
 
 import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -35,11 +37,7 @@ open class UpdateDownloader {
      * @return path to the completed temp file
      * @throws IOException on HTTP error or interrupted download
      */
-    fun download(
-        url: String,
-        totalBytes: Long,
-        onProgress: (bytesReceived: Long, totalBytes: Long) -> Unit,
-    ): Path {
+    fun download(url: String, totalBytes: Long, onProgress: (bytesReceived: Long, totalBytes: Long) -> Unit): Path {
         val fileName = url.substringAfterLast('/').substringBefore('?').ifBlank { "sparkle4j-update" }
         val tempFile = tempDir().resolve("sparkle4j-$fileName")
 
@@ -66,28 +64,35 @@ open class UpdateDownloader {
             else -> throw IOException("HTTP ${response.statusCode()} downloading $url")
         }
 
+        streamToFile(response.body(), tempFile, resumeAt, totalBytes, onProgress)
+        return tempFile
+    }
+
+    private fun streamToFile(input: InputStream, tempFile: Path, resumeAt: Long, totalBytes: Long, onProgress: (Long, Long) -> Unit) {
         val openOptions = if (resumeAt > 0) {
-            arrayOf(StandardOpenOption.APPEND)
+            listOf(StandardOpenOption.APPEND)
         } else {
-            arrayOf(StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+            listOf(StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
         }
 
-        response.body().use { input ->
-            Files.newOutputStream(tempFile, *openOptions).use { output ->
-                val buf = ByteArray(65536)
-                var received = resumeAt
-                var n: Int
-                while (input.read(buf).also { n = it } != -1) {
-                    if (Thread.currentThread().isInterrupted) {
-                        throw InterruptedException("Download cancelled")
-                    }
-                    output.write(buf, 0, n)
-                    received += n
-                    onProgress(received, totalBytes)
-                }
+        input.use { src ->
+            Files.newOutputStream(tempFile, *openOptions.toTypedArray()).use { output ->
+                transferBytes(src, output, resumeAt, totalBytes, onProgress)
             }
         }
+    }
 
-        return tempFile
+    private fun transferBytes(input: InputStream, output: OutputStream, startAt: Long, totalBytes: Long, onProgress: (Long, Long) -> Unit) {
+        val buf = ByteArray(65536)
+        var received = startAt
+        var n: Int
+        while (input.read(buf).also { n = it } != -1) {
+            if (Thread.currentThread().isInterrupted) {
+                throw InterruptedException("Download cancelled")
+            }
+            output.write(buf, 0, n)
+            received += n
+            onProgress(received, totalBytes)
+        }
     }
 }
