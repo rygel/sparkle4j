@@ -41,8 +41,12 @@ internal class AppcastFetcher {
 
         val response = try {
             client.send(builder.build(), HttpResponse.BodyHandlers.ofString())
-        } catch (e: Exception) {
+        } catch (e: java.io.IOException) {
             log.warning("Network error fetching appcast from $url: ${e.message}")
+            return null
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            log.warning("Appcast fetch interrupted for $url")
             return null
         }
 

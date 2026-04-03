@@ -11,9 +11,8 @@ class AppcastParserTest {
 
     private val parser = AppcastParser()
 
-    private fun xml(resource: String): String =
-        AppcastParserTest::class.java.classLoader
-            .getResourceAsStream(resource)!!.bufferedReader().readText()
+    private fun xml(resource: String): String = AppcastParserTest::class.java.classLoader
+        .getResourceAsStream(resource)!!.bufferedReader().readText()
 
     // --- happy path ---
 
@@ -78,8 +77,10 @@ class AppcastParserTest {
     @Test
     fun `rejects non-HTTPS enclosure URL`() {
         val feedWithHttp = xml("appcast-valid.xml")
-            .replace("https://example.com/releases/testapp-0.7.0-windows.exe",
-                     "http://example.com/releases/testapp-0.7.0-windows.exe")
+            .replace(
+                "https://example.com/releases/testapp-0.7.0-windows.exe",
+                "http://example.com/releases/testapp-0.7.0-windows.exe",
+            )
         val items = withOs("windows") { parser.parse(feedWithHttp) }
         // 0.7.0 has no valid windows enclosure now; 0.6.0 still has one
         assertTrue(items.none { it.version == "0.7.0" }, "0.7.0 should be rejected (http URL)")
@@ -138,11 +139,18 @@ class AppcastParserTest {
 
     private fun <T> withOs(os: String, block: () -> T): T {
         val original = System.getProperty("os.name")
-        System.setProperty("os.name", when (os) {
-            "windows" -> "Windows 10"
-            "macos"   -> "Mac OS X"
-            else      -> "Linux"
-        })
-        return try { block() } finally { System.setProperty("os.name", original) }
+        System.setProperty(
+            "os.name",
+            when (os) {
+                "windows" -> "Windows 10"
+                "macos" -> "Mac OS X"
+                else -> "Linux"
+            },
+        )
+        return try {
+            block()
+        } finally {
+            System.setProperty("os.name", original)
+        }
     }
 }

@@ -16,8 +16,8 @@ internal class UpdateApplier(private val config: Sparkle4jConfig) {
     fun apply(item: UpdateItem, tempFile: Path) {
         when (AppcastParser.currentOs()) {
             "windows" -> WindowsApplier().apply(item, tempFile)
-            "macos"   -> MacosApplier().apply(item, tempFile, resolveCurrentAppPath())
-            else      -> LinuxApplier().apply(item, tempFile)
+            "macos" -> MacosApplier().apply(item, tempFile, resolveCurrentAppPath())
+            else -> LinuxApplier().apply(item, tempFile)
         }
     }
 
@@ -27,15 +27,20 @@ internal class UpdateApplier(private val config: Sparkle4jConfig) {
         val jvmExe = ProcessHandle.current().info().command()
             .map { Path.of(it) }
             .orElse(null)
-            ?: return Path.of(".")
 
-        var path: Path? = jvmExe
+        val appBundle = jvmExe?.let { walkUpToAppBundle(it) }
+        if (appBundle == null) {
+            log.warning("Could not locate .app bundle — update may fail")
+        }
+        return appBundle ?: Path.of(".")
+    }
+
+    private fun walkUpToAppBundle(start: Path): Path? {
+        var path: Path? = start
         while (path != null) {
             if (path.fileName?.toString()?.endsWith(".app") == true) return path
             path = path.parent
         }
-
-        log.warning("Could not locate .app bundle — update may fail")
-        return Path.of(".")
+        return null
     }
 }

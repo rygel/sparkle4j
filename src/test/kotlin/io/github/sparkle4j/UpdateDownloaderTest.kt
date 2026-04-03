@@ -1,6 +1,10 @@
 package io.github.sparkle4j
 
-import com.github.tomakehurst.wiremock.client.WireMock.*
+import com.github.tomakehurst.wiremock.client.WireMock.aResponse
+import com.github.tomakehurst.wiremock.client.WireMock.get
+import com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor
+import com.github.tomakehurst.wiremock.client.WireMock.matching
+import com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension
 import org.junit.jupiter.api.Test
@@ -29,9 +33,11 @@ class UpdateDownloaderTest {
         val content = "hello world update payload".toByteArray()
         wireMock.stubFor(
             get(urlEqualTo("/update.exe"))
-                .willReturn(aResponse()
-                    .withStatus(200)
-                    .withBody(content))
+                .willReturn(
+                    aResponse()
+                        .withStatus(200)
+                        .withBody(content),
+                ),
         )
 
         val progressEvents = mutableListOf<Pair<Long, Long>>()
@@ -49,17 +55,19 @@ class UpdateDownloaderTest {
 
     @Test
     fun `resumes partial download when temp file exists`() {
-        val first  = "first-half-".toByteArray()
+        val first = "first-half-".toByteArray()
         val second = "second-half".toByteArray()
-        val full   = first + second
+        val full = first + second
 
         // Stub for partial content response when Range header is present
         wireMock.stubFor(
             get(urlEqualTo("/update.exe"))
                 .withHeader("Range", matching("bytes=\\d+-"))
-                .willReturn(aResponse()
-                    .withStatus(206)
-                    .withBody(second))
+                .willReturn(
+                    aResponse()
+                        .withStatus(206)
+                        .withBody(second),
+                ),
         )
 
         // Pre-create a partial temp file with the first half already downloaded
@@ -70,8 +78,10 @@ class UpdateDownloaderTest {
         val file = downloader.download(url("/update.exe"), full.size.toLong()) { _, _ -> }
 
         assertEquals(full.toList(), Files.readAllBytes(file).toList())
-        wireMock.verify(getRequestedFor(urlEqualTo("/update.exe"))
-            .withHeader("Range", matching("bytes=${first.size}-")))
+        wireMock.verify(
+            getRequestedFor(urlEqualTo("/update.exe"))
+                .withHeader("Range", matching("bytes=${first.size}-")),
+        )
     }
 
     @Test
@@ -79,9 +89,11 @@ class UpdateDownloaderTest {
         val content = "full content".toByteArray()
         wireMock.stubFor(
             get(urlEqualTo("/update.exe"))
-                .willReturn(aResponse()
-                    .withStatus(200)
-                    .withBody(content))
+                .willReturn(
+                    aResponse()
+                        .withStatus(200)
+                        .withBody(content),
+                ),
         )
 
         // Pre-create a stale partial file
@@ -98,7 +110,7 @@ class UpdateDownloaderTest {
     fun `throws IOException on HTTP error`() {
         wireMock.stubFor(
             get(urlEqualTo("/update.exe"))
-                .willReturn(aResponse().withStatus(503))
+                .willReturn(aResponse().withStatus(503)),
         )
 
         val downloader = UpdateDownloaderUnderTest(tempDir)
@@ -112,9 +124,11 @@ class UpdateDownloaderTest {
         val content = ByteArray(1024) { it.toByte() }
         wireMock.stubFor(
             get(urlEqualTo("/update.exe"))
-                .willReturn(aResponse()
-                    .withStatus(200)
-                    .withBody(content))
+                .willReturn(
+                    aResponse()
+                        .withStatus(200)
+                        .withBody(content),
+                ),
         )
 
         val downloader = UpdateDownloaderUnderTest(tempDir)

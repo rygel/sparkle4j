@@ -75,7 +75,7 @@ class SignatureVerifierTest {
     @Test
     fun `accepts raw 32-byte Ed25519 public key (Sparkle key format)`() {
         // Extract just the raw 32-byte key from the DER-encoded public key
-        val derEncoded = keyPair.public.encoded  // 44 bytes (12-byte header + 32-byte key)
+        val derEncoded = keyPair.public.encoded // 44 bytes (12-byte header + 32-byte key)
         val rawKey32 = derEncoded.takeLast(32).toByteArray()
 
         val content = "test payload".toByteArray()
@@ -93,7 +93,7 @@ class SignatureVerifierTest {
         val file = tempDir.resolve("update.exe").also { Files.write(it, content) }
         val signature = sign(content)
 
-        val verifier = SignatureVerifier(publicKeyBase64)  // publicKeyBase64 is DER-encoded (44 bytes)
+        val verifier = SignatureVerifier(publicKeyBase64) // publicKeyBase64 is DER-encoded (44 bytes)
         assertTrue(verifier.verify(file, signature), "DER X.509 key should be accepted")
     }
 }
