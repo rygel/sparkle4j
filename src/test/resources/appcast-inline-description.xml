@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <item>
+      <title>TestApp 0.8.0</title>
+      <sparkle:version>0.8.0</sparkle:version>
+      <description>## What's new
+
+- Fixed a crash on startup
+- Improved performance</description>
+
+      <enclosure
+        url="https://example.com/releases/testapp-0.8.0-windows.exe"
+        sparkle:os="windows"
+        length="100"
+        type="application/octet-stream"/>
+    </item>
+  </channel>
+</rss>

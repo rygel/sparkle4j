@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"
+     xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>TestApp</title>
+    <link>https://example.com/testapp</link>
+
+    <item>
+      <title>TestApp 0.7.0</title>
+      <pubDate>Fri, 10 Apr 2026 12:00:00 +0000</pubDate>
+      <sparkle:version>47391</sparkle:version>
+      <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
+      <sparkle:releaseNotesLink>https://example.com/changelog</sparkle:releaseNotesLink>
+      <sparkle:criticalUpdate/>
+
+      <enclosure
+        url="https://example.com/releases/testapp-0.7.0-windows.exe"
+        sparkle:os="windows"
+        length="185000000"
+        type="application/octet-stream"
+        sparkle:edSignature="AAAA"/>
+
+      <enclosure
+        url="https://example.com/releases/testapp-0.7.0-macos.zip"
+        sparkle:os="macos"
+        length="170000000"
+        type="application/zip"
+        sparkle:edSignature="BBBB"/>
+
+      <enclosure
+        url="https://example.com/releases/testapp-0.7.0.deb"
+        sparkle:os="linux"
+        length="160000000"
+        type="application/vnd.debian.binary-package"
+        sparkle:edSignature="CCCC"/>
+    </item>
+
+    <item>
+      <title>TestApp 0.6.0</title>
+      <pubDate>Mon, 01 Jan 2026 12:00:00 +0000</pubDate>
+      <sparkle:version>0.6.0</sparkle:version>
+
+      <enclosure
+        url="https://example.com/releases/testapp-0.6.0-windows.exe"
+        sparkle:os="windows"
+        length="180000000"
+        type="application/octet-stream"/>
+    </item>
+  </channel>
+</rss>

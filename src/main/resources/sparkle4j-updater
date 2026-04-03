@@ -1,0 +1,50 @@
+#!/bin/bash
+# sparkle4j-updater — macOS update helper script
+#
+# Bundle this file at: Contents/MacOS/sparkle4j-updater inside your .app
+# The jpackage build must mark it executable (chmod +x).
+#
+# Arguments:
+#   $1  Path to the running .app bundle  (e.g. /Applications/MyApp.app)
+#   $2  Path to the downloaded update ZIP
+#   $3  PID of the parent JVM process to wait for
+
+set -euo pipefail
+
+APP_PATH="$1"
+UPDATE_ZIP="$2"
+PARENT_PID="$3"
+
+# Wait for the parent JVM to exit before touching the bundle
+while kill -0 "$PARENT_PID" 2>/dev/null; do
+    sleep 0.3
+done
+
+# Extract the update ZIP to a staging directory
+STAGING=$(mktemp -d)
+unzip -q "$UPDATE_ZIP" -d "$STAGING"
+
+# Locate the .app inside the staging dir
+NEW_APP=$(find "$STAGING" -maxdepth 1 -name "*.app" | head -1)
+if [[ -z "$NEW_APP" ]]; then
+    osascript -e 'display alert "Update failed" message "The update archive did not contain a valid .app bundle."'
+    rm -rf "$STAGING"
+    exit 1
+fi
+
+APP_DIR=$(dirname "$APP_PATH")
+
+# Move the old bundle to trash (graceful) or delete it (fallback)
+/usr/bin/osascript -e "tell application \"Finder\" to move POSIX file \"$APP_PATH\" to trash" 2>/dev/null \
+    || rm -rf "$APP_PATH"
+
+# Copy the new bundle into place
+cp -R "$NEW_APP" "$APP_DIR/"
+
+# Clean up staging and the downloaded ZIP
+rm -rf "$STAGING"
+rm -f "$UPDATE_ZIP"
+
+# Relaunch
+INSTALLED_APP="$APP_DIR/$(basename "$NEW_APP")"
+open "$INSTALLED_APP"

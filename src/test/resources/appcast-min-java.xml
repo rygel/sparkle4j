@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <item>
+      <title>TestApp 1.0.0</title>
+      <sparkle:version>1.0.0</sparkle:version>
+      <sparkle:minimumJavaVersion>999</sparkle:minimumJavaVersion>
+      <enclosure
+        url="https://example.com/releases/testapp-1.0.0.exe"
+        sparkle:os="windows"
+        length="1000"
+        type="application/octet-stream"/>
+    </item>
+  </channel>
+</rss>
