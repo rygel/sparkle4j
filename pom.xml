@@ -10,7 +10,7 @@
     <packaging>jar</packaging>
 
     <name>sparkle4j</name>
-    <description>In-app update checking and silent update application for Java/Kotlin desktop apps. Compatible with the Sparkle appcast format.</description>
+    <description>In-app update checking and silent update application for Java desktop apps. Compatible with the Sparkle appcast format.</description>
     <url>https://github.com/sparkle4j/sparkle4j</url>
 
     <licenses>
@@ -43,7 +43,6 @@
     </distributionManagement>
 
     <properties>
-        <kotlin.version>2.1.20</kotlin.version>
         <junit.version>5.11.4</junit.version>
         <wiremock.version>3.10.0</wiremock.version>
 
@@ -58,15 +57,11 @@
         <maven.resources.plugin.version>3.5.0</maven.resources.plugin.version>
         <maven.site.plugin.version>3.21.0</maven.site.plugin.version>
         <maven.gpg.plugin.version>3.2.8</maven.gpg.plugin.version>
+        <maven.javadoc.plugin.version>3.11.2</maven.javadoc.plugin.version>
         <central.publishing.plugin.version>0.10.0</central.publishing.plugin.version>
-        <dokka.version>2.2.0</dokka.version>
-
-        <detekt.version>1.23.8</detekt.version>
-        <ktlint.version>1.5.0</ktlint.version>
 
         <java.version>17</java.version>
-        <maven.compiler.source>${java.version}</maven.compiler.source>
-        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Test timeout guards (per CLAUDE.md) -->
@@ -74,24 +69,11 @@
     </properties>
 
     <dependencies>
-        <!-- Kotlin stdlib -->
-        <dependency>
-            <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-stdlib</artifactId>
-            <version>${kotlin.version}</version>
-        </dependency>
-
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-test-junit5</artifactId>
-            <version>${kotlin.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -103,9 +85,6 @@
     </dependencies>
 
     <build>
-        <sourceDirectory>${project.basedir}/src/main/kotlin</sourceDirectory>
-        <testSourceDirectory>${project.basedir}/src/test/kotlin</testSourceDirectory>
-
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -163,31 +142,10 @@
 
         <plugins>
             <plugin>
-                <groupId>org.jetbrains.kotlin</groupId>
-                <artifactId>kotlin-maven-plugin</artifactId>
-                <version>${kotlin.version}</version>
-                <executions>
-                    <execution>
-                        <id>compile</id>
-                        <goals><goal>compile</goal></goals>
-                        <configuration>
-                            <sourceDirs>
-                                <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
-                            </sourceDirs>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>test-compile</id>
-                        <goals><goal>test-compile</goal></goals>
-                        <configuration>
-                            <sourceDirs>
-                                <sourceDir>${project.basedir}/src/test/kotlin</sourceDir>
-                            </sourceDirs>
-                        </configuration>
-                    </execution>
-                </executions>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <jvmTarget>${java.version}</jvmTarget>
+                    <release>${java.version}</release>
                 </configuration>
             </plugin>
 
@@ -245,66 +203,23 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <!-- Detekt — Kotlin static analysis -->
-            <plugin>
-                <groupId>com.github.ozsie</groupId>
-                <artifactId>detekt-maven-plugin</artifactId>
-                <version>${detekt.version}</version>
-                <configuration>
-                    <config>${project.basedir}/detekt.yml</config>
-                    <buildUponDefaultConfig>true</buildUponDefaultConfig>
-                    <parallel>true</parallel>
-                    <input>${project.basedir}/src/main/kotlin</input>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>detekt-check</id>
-                        <phase>verify</phase>
-                        <goals><goal>check</goal></goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- ktlint — Kotlin code formatting -->
-            <plugin>
-                <groupId>com.github.gantsign.maven</groupId>
-                <artifactId>ktlint-maven-plugin</artifactId>
-                <version>3.5.0</version>
-                <executions>
-                    <execution>
-                        <id>ktlint-check</id>
-                        <phase>verify</phase>
-                        <goals><goal>check</goal></goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
 
-    <!--
-        Release profile — activated automatically by the Central Publishing Plugin
-        when deploying to Maven Central. Run: mvn deploy -P release
-
-        Prerequisites:
-          - GPG key set up and published to a keyserver
-          - ~/.m2/settings.xml with <server id="central"> credentials from
-            https://central.sonatype.com/account (username = user token, password = token)
-    -->
     <profiles>
         <profile>
             <id>release</id>
             <build>
                 <plugins>
-                    <!-- Dokka for KDoc → Javadoc JAR (Maven Central requires a -javadoc artifact) -->
+                    <!-- Javadoc JAR (Maven Central requires a -javadoc artifact) -->
                     <plugin>
-                        <groupId>org.jetbrains.dokka</groupId>
-                        <artifactId>dokka-maven-plugin</artifactId>
-                        <version>${dokka.version}</version>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>${maven.javadoc.plugin.version}</version>
                         <executions>
                             <execution>
-                                <phase>package</phase>
-                                <goals><goal>javadocJar</goal></goals>
+                                <id>attach-javadocs</id>
+                                <goals><goal>jar</goal></goals>
                             </execution>
                         </executions>
                     </plugin>
@@ -320,7 +235,6 @@
                                 <phase>verify</phase>
                                 <goals><goal>sign</goal></goals>
                                 <configuration>
-                                    <!-- Prevents interactive TTY prompt in CI -->
                                     <gpgArguments>
                                         <arg>--pinentry-mode</arg>
                                         <arg>loopback</arg>
@@ -330,7 +244,7 @@
                         </executions>
                     </plugin>
 
-                    <!-- Publish to Maven Central via the new publishing portal -->
+                    <!-- Publish to Maven Central -->
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
@@ -338,7 +252,7 @@
                         <extensions>true</extensions>
                         <configuration>
                             <publishingServerId>central</publishingServerId>
-                            <autoPublish>false</autoPublish><!-- review deployment before releasing -->
+                            <autoPublish>false</autoPublish>
                         </configuration>
                     </plugin>
                 </plugins>
