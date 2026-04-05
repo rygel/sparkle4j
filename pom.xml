@@ -342,25 +342,6 @@
                 </executions>
             </plugin>
 
-            <!-- Checkstyle -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-checkstyle-plugin</artifactId>
-                <configuration>
-                    <configLocation>config/checkstyle/checkstyle.xml</configLocation>
-                    <consoleOutput>true</consoleOutput>
-                    <failsOnError>true</failsOnError>
-                    <includeTestSourceRoots>true</includeTestSourceRoots>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>checkstyle</id>
-                        <phase>validate</phase>
-                        <goals><goal>check</goal></goals>
-                    </execution>
-                </executions>
-            </plugin>
-
             <!-- Spotless (code formatting) -->
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
@@ -490,6 +471,35 @@
     </build>
 
     <profiles>
+        <!-- Checkstyle 13.x requires Java 21+; auto-activates when running on JDK 21+ -->
+        <profile>
+            <id>checkstyle</id>
+            <activation>
+                <jdk>[21,)</jdk>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-checkstyle-plugin</artifactId>
+                        <configuration>
+                            <configLocation>config/checkstyle/checkstyle.xml</configLocation>
+                            <consoleOutput>true</consoleOutput>
+                            <failsOnError>true</failsOnError>
+                            <includeTestSourceRoots>true</includeTestSourceRoots>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>checkstyle</id>
+                                <phase>validate</phase>
+                                <goals><goal>check</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <!-- OWASP dependency-check (slow, run explicitly: mvn verify -Powasp) -->
         <profile>
             <id>owasp</id>
