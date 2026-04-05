@@ -15,32 +15,39 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
  * CLI tool for generating / updating an appcast XML file on each release.
  *
- * <p>Usage: {@code java -cp sparkle4j.jar io.github.sparkle4j.tools.AppcastGenerator <version> <appcast-file>}
+ * <p>Usage: {@code java -cp sparkle4j.jar io.github.sparkle4j.tools.AppcastGenerator <version>
+ * <appcast-file>}
  *
  * <p>Environment variables:
+ *
  * <ul>
- *   <li>{@code SPARKLE_PRIVATE_KEY} — Base64-encoded PKCS#8 Ed25519 private key</li>
- *   <li>{@code APPCAST_BASE_URL} — Base download URL</li>
- *   <li>{@code INSTALLER_WINDOWS} — Path to the Windows .exe installer</li>
- *   <li>{@code INSTALLER_MACOS} — Path to the macOS .zip archive</li>
- *   <li>{@code INSTALLER_LINUX} — Path to the Linux .deb or .rpm package</li>
- *   <li>{@code RELEASE_NOTES_URL} — URL to the release notes page (optional)</li>
- *   <li>{@code APP_NAME} — Application name (optional)</li>
+ *   <li>{@code SPARKLE_PRIVATE_KEY} — Base64-encoded PKCS#8 Ed25519 private key
+ *   <li>{@code APPCAST_BASE_URL} — Base download URL
+ *   <li>{@code INSTALLER_WINDOWS} — Path to the Windows .exe installer
+ *   <li>{@code INSTALLER_MACOS} — Path to the macOS .zip archive
+ *   <li>{@code INSTALLER_LINUX} — Path to the Linux .deb or .rpm package
+ *   <li>{@code RELEASE_NOTES_URL} — URL to the release notes page (optional)
+ *   <li>{@code APP_NAME} — Application name (optional)
  * </ul>
  */
 public final class AppcastGenerator {
+
+    private static final Logger log = Logger.getLogger(AppcastGenerator.class.getName());
+
+    private AppcastGenerator() {}
 
     private record Installer(Path path, String os, String ext) {}
 
     public static void main(String[] args) throws Exception {
         if (args.length < 2) {
-            System.err.println("Usage: AppcastGenerator <version> <appcast-file>");
+            log.severe("Usage: AppcastGenerator <version> <appcast-file>");
             System.exit(1);
         }
 
@@ -54,21 +61,35 @@ public final class AppcastGenerator {
         var installers = collectInstallers();
 
         if (installers.isEmpty()) {
-            System.err.println("No installer paths provided via INSTALLER_* environment variables.");
+            log.severe("No installer paths provided via INSTALLER_* environment variables.");
             System.exit(1);
         }
 
         var privateKey = loadPrivateKey(privateKeyB64);
-        var pubDate = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.RFC_1123_DATE_TIME);
+        var pubDate =
+                ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.RFC_1123_DATE_TIME);
         var enclosures = buildEnclosures(installers, baseUrl, privateKey);
         var newItem = buildItem(appName, version, pubDate, releaseNotesUrl, enclosures);
 
-        var existing = Files.exists(appcastPath) ? Files.readString(appcastPath) : minimalRssSkeleton(appName);
+        var existing =
+                Files.exists(appcastPath)
+                        ? Files.readString(appcastPath)
+                        : minimalRssSkeleton(appName);
         var updated = insertItem(existing, newItem);
-        if (appcastPath.getParent() != null) Files.createDirectories(appcastPath.getParent());
+        var parentDir = appcastPath.getParent();
+        if (parentDir != null) {
+            Files.createDirectories(parentDir);
+        }
         Files.writeString(appcastPath, updated);
 
-        System.out.println("Appcast updated: " + appcastPath + " (version " + version + ", " + installers.size() + " enclosure(s))");
+        log.info(
+                "Appcast updated: "
+                        + appcastPath
+                        + " (version "
+                        + version
+                        + ", "
+                        + installers.size()
+                        + " enclosure(s))");
     }
 
     private static List<Installer> collectInstallers() {
@@ -78,51 +99,76 @@ public final class AppcastGenerator {
         var mac = System.getenv("INSTALLER_MACOS");
         if (mac != null) list.add(new Installer(Path.of(mac), "macos", "zip"));
         var linux = System.getenv("INSTALLER_LINUX");
-        if (linux != null) list.add(new Installer(Path.of(linux), "linux", linux.endsWith(".rpm") ? "rpm" : "deb"));
+        if (linux != null) {
+            list.add(
+                    new Installer(Path.of(linux), "linux", linux.endsWith(".rpm") ? "rpm" : "deb"));
+        }
         return list;
     }
 
-    private static String buildEnclosures(List<Installer> installers, String baseUrl, PrivateKey privateKey)
-        throws IOException, GeneralSecurityException {
-        return installers.stream().map(inst -> {
-            try {
-                var bytes = Files.readAllBytes(inst.path());
-                var sha256 = sha256Hex(bytes);
-                var signature = sign(bytes, privateKey);
-                var fileName = inst.path().getFileName().toString();
-                var length = Files.size(inst.path());
-                var url = baseUrl + "/" + fileName;
-                var mimeType = mimeType(inst.ext());
-                return """
+    private static String buildEnclosures(
+            List<Installer> installers, String baseUrl, PrivateKey privateKey)
+            throws IOException, GeneralSecurityException {
+        return installers.stream()
+                .map(
+                        inst -> {
+                            try {
+                                var bytes = Files.readAllBytes(inst.path());
+                                var sha256 = sha256Hex(bytes);
+                                var signature = sign(bytes, privateKey);
+                                var fileNamePart = inst.path().getFileName();
+                                var fileName =
+                                        fileNamePart != null
+                                                ? fileNamePart.toString()
+                                                : inst.path().toString();
+                                var length = Files.size(inst.path());
+                                var url = baseUrl + "/" + fileName;
+                                var mimeType = mimeType(inst.ext());
+                                return """
                           <enclosure
                             url="%s"
                             sparkle:os="%s"
                             length="%d"
                             type="%s"
                             sparkle:edSignature="%s"
-                            sparkle:sha256="%s"/>""".formatted(url, inst.os(), length, mimeType, signature, sha256);
-            } catch (IOException | GeneralSecurityException e) {
-                throw new RuntimeException(e);
-            }
-        }).collect(Collectors.joining("\n"));
+                            sparkle:sha256="%s"/>"""
+                                        .formatted(
+                                                url, inst.os(), length, mimeType, signature,
+                                                sha256);
+                            } catch (IOException | GeneralSecurityException e) {
+                                throw new IllegalStateException(e);
+                            }
+                        })
+                .collect(Collectors.joining("\n"));
     }
 
-    private static String buildItem(String appName, String version, String pubDate, String releaseNotesUrl, String enclosures) {
-        var releaseNotesElement = releaseNotesUrl != null
-            ? "\n      <sparkle:releaseNotesLink>" + releaseNotesUrl + "</sparkle:releaseNotesLink>"
-            : "";
+    private static String buildItem(
+            String appName,
+            String version,
+            String pubDate,
+            String releaseNotesUrl,
+            String enclosures) {
+        var releaseNotesElement =
+                releaseNotesUrl != null
+                        ? "\n      <sparkle:releaseNotesLink>"
+                                + releaseNotesUrl
+                                + "</sparkle:releaseNotesLink>"
+                        : "";
         return """
                 <item>
                   <title>%s %s</title>
                   <pubDate>%s</pubDate>
                   <sparkle:version>%s</sparkle:version>%s
                   %s
-                </item>""".formatted(appName, version, pubDate, version, releaseNotesElement, enclosures);
+                </item>"""
+                .formatted(appName, version, pubDate, version, releaseNotesElement, enclosures);
     }
 
     private static String requireEnv(String name) {
         var value = System.getenv(name);
-        if (value == null) throw new IllegalStateException("Required environment variable not set: " + name);
+        if (value == null) {
+            throw new IllegalStateException("Required environment variable not set: " + name);
+        }
         return value;
     }
 
@@ -165,7 +211,8 @@ public final class AppcastGenerator {
                 <title>%s</title>
               </channel>
             </rss>
-            """.formatted(appName);
+            """
+                .formatted(appName);
     }
 
     private static final Pattern ITEM_MARKER = Pattern.compile("(\\s*<item\\b)");
@@ -174,8 +221,10 @@ public final class AppcastGenerator {
         var matcher = ITEM_MARKER.matcher(existing);
         if (matcher.find()) {
             return existing.substring(0, matcher.start())
-                + "\n    " + newItem + "\n"
-                + existing.substring(matcher.start());
+                    + "\n    "
+                    + newItem
+                    + "\n"
+                    + existing.substring(matcher.start());
         } else {
             return existing.replace("</channel>", "\n    " + newItem + "\n  </channel>");
         }

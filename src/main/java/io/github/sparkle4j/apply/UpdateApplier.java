@@ -4,12 +4,12 @@ import io.github.sparkle4j.AppcastParser;
 import io.github.sparkle4j.Sparkle4jConfig;
 import io.github.sparkle4j.UpdateItem;
 
+import org.jspecify.annotations.Nullable;
+
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
-/**
- * Dispatches to the correct platform applier and resolves the current .app path on macOS.
- */
+/** Dispatches to the correct platform applier and resolves the current .app path on macOS. */
 public final class UpdateApplier {
 
     private static final Logger log = Logger.getLogger(UpdateApplier.class.getName());
@@ -31,9 +31,7 @@ public final class UpdateApplier {
     private Path resolveCurrentAppPath() {
         if (config.macosAppPath() != null) return config.macosAppPath();
 
-        var jvmExe = ProcessHandle.current().info().command()
-            .map(Path::of)
-            .orElse(null);
+        var jvmExe = ProcessHandle.current().info().command().map(Path::of).orElse(null);
 
         var appBundle = jvmExe != null ? walkUpToAppBundle(jvmExe) : null;
         if (appBundle == null) {
@@ -42,7 +40,7 @@ public final class UpdateApplier {
         return appBundle != null ? appBundle : Path.of(".");
     }
 
-    private static Path walkUpToAppBundle(Path start) {
+    private static @Nullable Path walkUpToAppBundle(Path start) {
         var path = start;
         while (path != null) {
             var name = path.getFileName();

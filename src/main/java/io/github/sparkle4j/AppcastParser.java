@@ -1,5 +1,6 @@
 package io.github.sparkle4j;
 
+import org.jspecify.annotations.Nullable;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
@@ -7,26 +8,32 @@ import org.xml.sax.SAXException;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.logging.Logger;
 
 /**
  * Parses an RSS 2.0 + Sparkle-namespace appcast XML into a list of {@link UpdateItem}s.
  *
- * <p>Only items that have an {@code <enclosure>} matching the current OS are included.
- * Items are returned sorted by version descending (highest first).
+ * <p>Only items that have an {@code <enclosure>} matching the current OS are included. Items are
+ * returned sorted by version descending (highest first).
  */
 public final class AppcastParser {
 
     private static final Logger log = Logger.getLogger(AppcastParser.class.getName());
     private static final String SPARKLE_NS = "http://www.andymatuschak.org/xml-namespaces/sparkle";
 
-    List<UpdateItem> parse(String xml) throws SAXException, IOException {
+    List<UpdateItem> parse(String xml)
+            throws SAXException, IOException, ParserConfigurationException {
         var factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(true);
+        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
 
         try {
             var doc = factory.newDocumentBuilder().parse(new InputSource(new StringReader(xml)));
@@ -50,7 +57,7 @@ public final class AppcastParser {
         }
     }
 
-    private UpdateItem parseItem(Element item, String currentOs, int currentJvmMajor) {
+    private @Nullable UpdateItem parseItem(Element item, String currentOs, int currentJvmMajor) {
         var itemVersion = sparkleElement(item, "version");
         var itemShortVersion = sparkleElement(item, "shortVersionString");
 
@@ -63,29 +70,46 @@ public final class AppcastParser {
         var pubDate = firstElementText(item, "pubDate");
         var releaseNotesUrl = sparkleElement(item, "releaseNotesLink");
         var inlineDescription = firstElementText(item, "description");
-        boolean isCritical = item.getElementsByTagNameNS(SPARKLE_NS, "criticalUpdate").getLength() > 0;
+        boolean isCritical =
+                item.getElementsByTagNameNS(SPARKLE_NS, "criticalUpdate").getLength() > 0;
 
         NodeList enclosures = item.getElementsByTagName("enclosure");
         for (int j = 0; j < enclosures.getLength(); j++) {
             if (enclosures.item(j) instanceof Element enc) {
-                var result = parseEnclosure(enc, currentOs, itemVersion, itemShortVersion,
-                    releaseNotesUrl, inlineDescription, title, pubDate, minJava, isCritical);
+                var result =
+                        parseEnclosure(
+                                enc,
+                                currentOs,
+                                itemVersion,
+                                itemShortVersion,
+                                releaseNotesUrl,
+                                inlineDescription,
+                                title,
+                                pubDate,
+                                minJava,
+                                isCritical);
                 if (result != null) return result;
             }
         }
         return null;
     }
 
-    private UpdateItem parseEnclosure(
-        Element enc, String currentOs, String itemVersion, String itemShortVersion,
-        String releaseNotesUrl, String inlineDescription, String title, String pubDate,
-        Integer minJava, boolean isCritical
-    ) {
-        var os = enc.getAttributeNS(SPARKLE_NS, "os").toLowerCase();
+    private @Nullable UpdateItem parseEnclosure(
+            Element enc,
+            String currentOs,
+            @Nullable String itemVersion,
+            @Nullable String itemShortVersion,
+            @Nullable String releaseNotesUrl,
+            @Nullable String inlineDescription,
+            String title,
+            @Nullable String pubDate,
+            @Nullable Integer minJava,
+            boolean isCritical) {
+        var os = enc.getAttributeNS(SPARKLE_NS, "os").toLowerCase(Locale.ROOT);
         if (!os.equals(currentOs)) return null;
 
         var url = enc.getAttribute("url");
-        if (url == null || url.isBlank()) return null;
+        if (url.isBlank()) return null;
         if (!url.startsWith("https://")) {
             log.warning("Rejecting non-HTTPS enclosure URL: " + url);
             return null;
@@ -105,32 +129,40 @@ public final class AppcastParser {
         if (installerType == null) installerType = "inno";
 
         return new UpdateItem(
-            title, version, shortVersion, url, length, edSig,
-            releaseNotesUrl,
-            releaseNotesUrl == null ? inlineDescription : null,
-            minJava, pubDate, os, isCritical, installerType
-        );
+                title,
+                version,
+                shortVersion,
+                url,
+                length,
+                edSig,
+                releaseNotesUrl,
+                releaseNotesUrl == null ? inlineDescription : null,
+                minJava,
+                pubDate,
+                os,
+                isCritical,
+                installerType);
     }
 
-    private static String sparkleElement(Element el, String localName) {
+    private static @Nullable String sparkleElement(Element el, String localName) {
         var nodes = el.getElementsByTagNameNS(SPARKLE_NS, localName);
         if (nodes.getLength() == 0) return null;
         var text = nodes.item(0).getTextContent();
-        return text != null && !text.trim().isBlank() ? text.trim() : null;
+        return text != null && !text.isBlank() ? text.trim() : null;
     }
 
-    private static String firstElementText(Element el, String tagName) {
+    private static @Nullable String firstElementText(Element el, String tagName) {
         var nodes = el.getElementsByTagName(tagName);
         if (nodes.getLength() == 0) return null;
         var text = nodes.item(0).getTextContent();
-        return text != null && !text.trim().isBlank() ? text.trim() : null;
+        return text != null && !text.isBlank() ? text.trim() : null;
     }
 
-    private static String nonBlankOrNull(String s) {
+    private static @Nullable String nonBlankOrNull(@Nullable String s) {
         return s != null && !s.isBlank() ? s : null;
     }
 
-    private static Integer parseIntOrNull(String s) {
+    private static @Nullable Integer parseIntOrNull(String s) {
         try {
             return Integer.parseInt(s);
         } catch (NumberFormatException e) {
@@ -147,7 +179,7 @@ public final class AppcastParser {
     }
 
     public static String currentOs() {
-        var name = System.getProperty("os.name", "").toLowerCase();
+        var name = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         if (name.contains("win")) return "windows";
         if (name.contains("mac")) return "macos";
         return "linux";
