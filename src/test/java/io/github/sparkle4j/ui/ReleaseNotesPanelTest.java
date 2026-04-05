@@ -1,14 +1,26 @@
 package io.github.sparkle4j.ui;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.awt.Color;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
+@SuppressWarnings("NullAway.Init")
 class ReleaseNotesPanelTest {
+
+    @RegisterExtension
+    static WireMockExtension wireMock =
+            WireMockExtension.newInstance()
+                    .options(WireMockConfiguration.wireMockConfig().dynamicPort())
+                    .build();
 
     // Use reflection to test package-private static methods
     private static String invoke(String methodName, String arg) {
@@ -234,5 +246,103 @@ class ReleaseNotesPanelTest {
         } catch (ReflectiveOperationException e) {
             throw new AssertionError(e);
         }
+    }
+
+    // --- colorToHex ---
+
+    @Test
+    @DisplayName("colorToHex converts Color to hex string")
+    void colorToHexConversion() {
+        try {
+            Method method = ReleaseNotesPanel.class.getDeclaredMethod("colorToHex", Color.class);
+            method.setAccessible(true);
+            assertEquals("#FF0000", method.invoke(null, Color.RED));
+            assertEquals("#00FF00", method.invoke(null, Color.GREEN));
+            assertEquals("#0000FF", method.invoke(null, Color.BLUE));
+            assertEquals("#000000", method.invoke(null, Color.BLACK));
+            assertEquals("#FFFFFF", method.invoke(null, Color.WHITE));
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    // --- wrapHtml ---
+
+    @Test
+    @DisplayName("wrapHtml wraps content in styled body")
+    void wrapHtmlProducesStyledBody() {
+        var result = invoke("wrapHtml", "Hello");
+        assertTrue(result.startsWith("<html><body style='"));
+        assertTrue(result.contains("<p>Hello</p>"));
+        assertTrue(result.endsWith("</body></html>"));
+    }
+
+    // --- fetchRemoteContent ---
+
+    private static String invokeFetchRemoteContent(String url) {
+        try {
+            Method method =
+                    ReleaseNotesPanel.class.getDeclaredMethod("fetchRemoteContent", String.class);
+            method.setAccessible(true);
+            return (String) method.invoke(null, url);
+        } catch (InvocationTargetException e) {
+            throw new AssertionError(e.getCause());
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    @Test
+    @DisplayName("fetchRemoteContent returns HTML content as-is")
+    void fetchRemoteHtmlContent() {
+        wireMock.stubFor(
+                get(urlEqualTo("/notes.html"))
+                        .willReturn(aResponse().withStatus(200).withBody("<h1>Notes</h1>")));
+
+        var result =
+                invokeFetchRemoteContent("http://localhost:" + wireMock.getPort() + "/notes.html");
+        assertEquals("<h1>Notes</h1>", result);
+    }
+
+    @Test
+    @DisplayName("fetchRemoteContent converts markdown URL to HTML")
+    void fetchRemoteMarkdownContent() {
+        wireMock.stubFor(
+                get(urlEqualTo("/notes.md"))
+                        .willReturn(aResponse().withStatus(200).withBody("# Release Notes")));
+
+        var result =
+                invokeFetchRemoteContent("http://localhost:" + wireMock.getPort() + "/notes.md");
+        assertTrue(result.contains("<h1>Release Notes</h1>"));
+    }
+
+    @Test
+    @DisplayName("fetchRemoteContent returns error message on HTTP failure")
+    void fetchRemoteContentHttpError() {
+        wireMock.stubFor(get(urlEqualTo("/notes.html")).willReturn(aResponse().withStatus(500)));
+
+        var result =
+                invokeFetchRemoteContent("http://localhost:" + wireMock.getPort() + "/notes.html");
+        assertTrue(result.contains("Could not load release notes."));
+    }
+
+    @Test
+    @DisplayName("fetchRemoteContent returns error message on invalid URL")
+    void fetchRemoteContentInvalidUrl() {
+        var result = invokeFetchRemoteContent("not a valid url at all");
+        assertTrue(result.contains("Could not load release notes."));
+    }
+
+    @Test
+    @DisplayName("fetchRemoteContent detects markdown by content even without .md extension")
+    void fetchRemoteContentDetectsMarkdownByContent() {
+        wireMock.stubFor(
+                get(urlEqualTo("/notes"))
+                        .willReturn(
+                                aResponse().withStatus(200).withBody("# Changelog\n- Fixed bug")));
+
+        var result = invokeFetchRemoteContent("http://localhost:" + wireMock.getPort() + "/notes");
+        assertTrue(result.contains("<h1>Changelog</h1>"));
+        assertTrue(result.contains("<li>Fixed bug</li>"));
     }
 }

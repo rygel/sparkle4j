@@ -4,15 +4,23 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.util.Base64;
+import java.util.List;
 
+@SuppressWarnings("NullAway.Init")
 class AppcastGeneratorTest {
+
+    @TempDir Path tempDir;
 
     private static Object invokeStatic(String methodName, Class<?>[] paramTypes, Object... args) {
         try {
@@ -290,5 +298,82 @@ class AppcastGeneratorTest {
         assertTrue(result.contains("v1.0"));
         assertTrue(result.contains("v0.9"));
         assertTrue(result.indexOf("v1.1") < result.indexOf("v1.0"));
+    }
+
+    // --- buildEnclosures ---
+
+    @SuppressWarnings("unchecked")
+    private Object createInstaller(Path path, String os, String ext) {
+        try {
+            Class<?> installerClass =
+                    Class.forName("io.github.sparkle4j.tools.AppcastGenerator$Installer");
+            Constructor<?> ctor =
+                    installerClass.getDeclaredConstructor(Path.class, String.class, String.class);
+            ctor.setAccessible(true);
+            return ctor.newInstance(path, os, ext);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    @Test
+    @DisplayName("buildEnclosures generates enclosure XML with signature and hash")
+    void buildEnclosuresGeneratesXml() throws Exception {
+        var installer = tempDir.resolve("app-setup.exe");
+        Files.write(installer, "fake installer bytes".getBytes(StandardCharsets.UTF_8));
+
+        var keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        var installerObj = createInstaller(installer, "windows", "exe");
+
+        Method method =
+                AppcastGenerator.class.getDeclaredMethod(
+                        "buildEnclosures", List.class, String.class, PrivateKey.class);
+        method.setAccessible(true);
+
+        var result =
+                (String)
+                        method.invoke(
+                                null,
+                                List.of(installerObj),
+                                "https://dl.example.com",
+                                keyPair.getPrivate());
+
+        assertTrue(result.contains("url=\"https://dl.example.com/app-setup.exe\""));
+        assertTrue(result.contains("sparkle:os=\"windows\""));
+        assertTrue(result.contains("sparkle:edSignature="));
+        assertTrue(result.contains("sparkle:sha256="));
+        assertTrue(result.contains("type=\"application/octet-stream\""));
+        assertTrue(result.contains("length=\""));
+    }
+
+    @Test
+    @DisplayName("buildEnclosures handles multiple installers")
+    void buildEnclosuresMultiple() throws Exception {
+        var winInstaller = tempDir.resolve("app.exe");
+        var macInstaller = tempDir.resolve("app.zip");
+        Files.write(winInstaller, "win".getBytes(StandardCharsets.UTF_8));
+        Files.write(macInstaller, "mac".getBytes(StandardCharsets.UTF_8));
+
+        var keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+
+        Method method =
+                AppcastGenerator.class.getDeclaredMethod(
+                        "buildEnclosures", List.class, String.class, PrivateKey.class);
+        method.setAccessible(true);
+
+        var result =
+                (String)
+                        method.invoke(
+                                null,
+                                List.of(
+                                        createInstaller(winInstaller, "windows", "exe"),
+                                        createInstaller(macInstaller, "macos", "zip")),
+                                "https://dl.example.com",
+                                keyPair.getPrivate());
+
+        assertTrue(result.contains("sparkle:os=\"windows\""));
+        assertTrue(result.contains("sparkle:os=\"macos\""));
+        assertTrue(result.contains("type=\"application/octet-stream\""));
+        assertTrue(result.contains("type=\"application/zip\""));
     }
 }

@@ -57,6 +57,8 @@
         <exclude name="SignatureDeclareThrowsException"/>
         <!-- JUnit @RegisterExtension fields must be static and mutable -->
         <exclude name="MutableStaticState"/>
+        <!-- Test classes with many test methods trigger this incorrectly -->
+        <exclude name="GodClass"/>
     </rule>
     <rule ref="category/java/design.xml/CyclomaticComplexity">
         <properties>
