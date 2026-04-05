@@ -17,7 +17,10 @@ final class MacosApplier {
         var helperScript = currentAppPath.resolve("Contents/MacOS/sparkle4j-updater");
 
         if (!Files.exists(helperScript)) {
-            log.severe("Helper script not found at " + helperScript + " — falling back to browser download");
+            log.severe(
+                    "Helper script not found at "
+                            + helperScript
+                            + " — falling back to browser download");
             openBrowser(item.url());
             return;
         }
@@ -26,11 +29,11 @@ final class MacosApplier {
             helperScript.toFile().setExecutable(true);
 
             new ProcessBuilder(
-                helperScript.toString(),
-                currentAppPath.toString(),
-                tempFile.toString(),
-                String.valueOf(ProcessHandle.current().pid())
-            ).start(); // fire and forget
+                            helperScript.toString(),
+                            currentAppPath.toString(),
+                            tempFile.toString(),
+                            String.valueOf(ProcessHandle.current().pid()))
+                    .start(); // fire and forget
 
             System.exit(0);
         } catch (IOException e) {

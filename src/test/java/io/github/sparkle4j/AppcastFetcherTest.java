@@ -1,21 +1,21 @@
 package io.github.sparkle4j;
 
-import com.github.tomakehurst.wiremock.client.WireMock;
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.junit.jupiter.api.Assertions.*;
-
 class AppcastFetcherTest {
 
     @RegisterExtension
-    static WireMockExtension wireMock = WireMockExtension.newInstance()
-        .options(WireMockConfiguration.wireMockConfig().dynamicPort())
-        .build();
+    static WireMockExtension wireMock =
+            WireMockExtension.newInstance()
+                    .options(WireMockConfiguration.wireMockConfig().dynamicPort())
+                    .build();
 
     private final AppcastFetcher fetcher = new AppcastFetcher();
 
@@ -23,29 +23,38 @@ class AppcastFetcherTest {
         return "http://localhost:" + wireMock.getPort() + path;
     }
 
-    @Test @DisplayName("returns body on 200")
+    @Test
+    @DisplayName("returns body on 200")
     void returnsBodyOn200() {
-        wireMock.stubFor(get(urlEqualTo("/appcast.xml"))
-            .willReturn(aResponse().withStatus(200)
-                .withHeader("Content-Type", "application/xml")
-                .withBody("<rss/>")));
+        wireMock.stubFor(
+                get(urlEqualTo("/appcast.xml"))
+                        .willReturn(
+                                aResponse()
+                                        .withStatus(200)
+                                        .withHeader("Content-Type", "application/xml")
+                                        .withBody("<rss/>")));
 
         assertEquals("<rss/>", fetcher.fetch(url("/appcast.xml")));
     }
 
-    @Test @DisplayName("sends If-None-Match on second request and returns cached body on 304")
+    @Test
+    @DisplayName("sends If-None-Match on second request and returns cached body on 304")
     void etagCaching() {
         var etag = "\"abc123\"";
 
-        wireMock.stubFor(get(urlEqualTo("/appcast.xml"))
-            .withHeader("If-None-Match", absent())
-            .willReturn(aResponse().withStatus(200)
-                .withHeader("ETag", etag)
-                .withBody("<rss/>")));
+        wireMock.stubFor(
+                get(urlEqualTo("/appcast.xml"))
+                        .withHeader("If-None-Match", absent())
+                        .willReturn(
+                                aResponse()
+                                        .withStatus(200)
+                                        .withHeader("ETag", etag)
+                                        .withBody("<rss/>")));
 
-        wireMock.stubFor(get(urlEqualTo("/appcast.xml"))
-            .withHeader("If-None-Match", equalTo(etag))
-            .willReturn(aResponse().withStatus(304)));
+        wireMock.stubFor(
+                get(urlEqualTo("/appcast.xml"))
+                        .withHeader("If-None-Match", equalTo(etag))
+                        .willReturn(aResponse().withStatus(304)));
 
         assertEquals("<rss/>", fetcher.fetch(url("/appcast.xml")));
         assertEquals("<rss/>", fetcher.fetch(url("/appcast.xml")));
@@ -53,51 +62,60 @@ class AppcastFetcherTest {
         wireMock.verify(2, getRequestedFor(urlEqualTo("/appcast.xml")));
     }
 
-    @Test @DisplayName("sends If-Modified-Since when ETag absent")
+    @Test
+    @DisplayName("sends If-Modified-Since when ETag absent")
     void lastModifiedCaching() {
         var lastModified = "Wed, 01 Jan 2026 00:00:00 GMT";
 
-        wireMock.stubFor(get(urlEqualTo("/appcast.xml"))
-            .withHeader("If-Modified-Since", absent())
-            .willReturn(aResponse().withStatus(200)
-                .withHeader("Last-Modified", lastModified)
-                .withBody("<rss/>")));
+        wireMock.stubFor(
+                get(urlEqualTo("/appcast.xml"))
+                        .withHeader("If-Modified-Since", absent())
+                        .willReturn(
+                                aResponse()
+                                        .withStatus(200)
+                                        .withHeader("Last-Modified", lastModified)
+                                        .withBody("<rss/>")));
 
-        wireMock.stubFor(get(urlEqualTo("/appcast.xml"))
-            .withHeader("If-Modified-Since", equalTo(lastModified))
-            .willReturn(aResponse().withStatus(304)));
+        wireMock.stubFor(
+                get(urlEqualTo("/appcast.xml"))
+                        .withHeader("If-Modified-Since", equalTo(lastModified))
+                        .willReturn(aResponse().withStatus(304)));
 
         fetcher.fetch(url("/appcast.xml"));
         assertEquals("<rss/>", fetcher.fetch(url("/appcast.xml")));
     }
 
-    @Test @DisplayName("returns null on unexpected HTTP status")
+    @Test
+    @DisplayName("returns null on unexpected HTTP status")
     void returnsNullOnError() {
-        wireMock.stubFor(get(urlEqualTo("/appcast.xml"))
-            .willReturn(aResponse().withStatus(500)));
+        wireMock.stubFor(get(urlEqualTo("/appcast.xml")).willReturn(aResponse().withStatus(500)));
 
         assertNull(fetcher.fetch(url("/appcast.xml")));
     }
 
-    @Test @DisplayName("returns null on 404")
+    @Test
+    @DisplayName("returns null on 404")
     void returnsNullOn404() {
-        wireMock.stubFor(get(urlEqualTo("/appcast.xml"))
-            .willReturn(aResponse().withStatus(404)));
+        wireMock.stubFor(get(urlEqualTo("/appcast.xml")).willReturn(aResponse().withStatus(404)));
 
         assertNull(fetcher.fetch(url("/appcast.xml")));
     }
 
-    @Test @DisplayName("returns null when server is unreachable")
+    @Test
+    @DisplayName("returns null when server is unreachable")
     void returnsNullOnUnreachable() {
         assertNull(fetcher.fetch("http://localhost:1/appcast.xml"));
     }
 
-    @Test @DisplayName("follows redirect")
+    @Test
+    @DisplayName("follows redirect")
     void followsRedirect() {
-        wireMock.stubFor(get(urlEqualTo("/old-appcast.xml"))
-            .willReturn(permanentRedirect(url("/appcast.xml"))));
-        wireMock.stubFor(get(urlEqualTo("/appcast.xml"))
-            .willReturn(aResponse().withStatus(200).withBody("<rss/>")));
+        wireMock.stubFor(
+                get(urlEqualTo("/old-appcast.xml"))
+                        .willReturn(permanentRedirect(url("/appcast.xml"))));
+        wireMock.stubFor(
+                get(urlEqualTo("/appcast.xml"))
+                        .willReturn(aResponse().withStatus(200).withBody("<rss/>")));
 
         assertEquals("<rss/>", fetcher.fetch(url("/old-appcast.xml")));
     }

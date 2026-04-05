@@ -1,15 +1,18 @@
 package io.github.sparkle4j;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Set;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
 /**
- * Persists skipped versions and last-check timestamp using the JDK Preferences API.
- * Node path: /io/github/sparkle4j/&lt;sanitized-app-name&gt;
+ * Persists skipped versions and last-check timestamp using the JDK Preferences API. Node path:
+ * /io/github/sparkle4j/&lt;sanitized-app-name&gt;
  */
 final class UpdatePreferences {
 
@@ -19,11 +22,11 @@ final class UpdatePreferences {
     private final Preferences prefs;
 
     UpdatePreferences(String appName) {
-        var sanitized = appName.toLowerCase().replaceAll("[^a-z0-9]", "-");
+        var sanitized = appName.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "-");
         this.prefs = Preferences.userRoot().node("/io/github/sparkle4j/" + sanitized);
     }
 
-    Instant getLastCheckTimestamp() {
+    @Nullable Instant getLastCheckTimestamp() {
         long epoch = prefs.getLong(KEY_LAST_CHECK, -1L);
         return epoch >= 0 ? Instant.ofEpochSecond(epoch) : null;
     }
@@ -44,8 +47,6 @@ final class UpdatePreferences {
 
     private Set<String> skippedVersions() {
         var raw = prefs.get(KEY_SKIPPED_VERSIONS, "");
-        return Arrays.stream(raw.split(","))
-            .filter(s -> !s.isBlank())
-            .collect(Collectors.toSet());
+        return Arrays.stream(raw.split(",")).filter(s -> !s.isBlank()).collect(Collectors.toSet());
     }
 }

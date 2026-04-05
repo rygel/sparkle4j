@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import java.util.logging.Logger;
 
 final class LinuxApplier {
@@ -14,15 +15,17 @@ final class LinuxApplier {
     private static final Logger log = Logger.getLogger(LinuxApplier.class.getName());
 
     void apply(UpdateItem item, Path tempFile) {
-        var fileName = tempFile.getFileName().toString();
+        var fileNamePart = tempFile.getFileName();
+        var fileName = fileNamePart != null ? fileNamePart.toString() : tempFile.toString();
         var dot = fileName.lastIndexOf('.');
-        var ext = dot >= 0 ? fileName.substring(dot + 1).toLowerCase() : "";
+        var ext = dot >= 0 ? fileName.substring(dot + 1).toLowerCase(Locale.ROOT) : "";
 
-        List<String> command = switch (ext) {
-            case "deb" -> List.of("pkexec", "dpkg", "-i", tempFile.toString());
-            case "rpm" -> List.of("pkexec", "rpm", "-U", tempFile.toString());
-            default -> null;
-        };
+        List<String> command =
+                switch (ext) {
+                    case "deb" -> List.of("pkexec", "dpkg", "-i", tempFile.toString());
+                    case "rpm" -> List.of("pkexec", "rpm", "-U", tempFile.toString());
+                    default -> null;
+                };
 
         if (command != null) {
             try {
