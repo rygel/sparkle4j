@@ -1,5 +1,7 @@
 package io.github.sparkle4j;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -11,32 +13,30 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 /**
- * Fetches the appcast XML over HTTPS with ETag/Last-Modified caching.
- * Returns null if the feed has not changed since the last fetch (304).
- * Fails silently on network errors — callers receive null.
+ * Fetches the appcast XML over HTTPS with ETag/Last-Modified caching. Returns null if the feed has
+ * not changed since the last fetch (304). Fails silently on network errors — callers receive null.
  */
 final class AppcastFetcher {
 
     private static final Logger log = Logger.getLogger(AppcastFetcher.class.getName());
 
-    private final HttpClient client = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofSeconds(10))
-        .followRedirects(HttpClient.Redirect.NORMAL)
-        .build();
+    private final HttpClient client =
+            HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(10))
+                    .followRedirects(HttpClient.Redirect.NORMAL)
+                    .build();
 
     private final Map<String, CacheEntry> cache = new HashMap<>();
 
-    private record CacheEntry(String body, String etag, String lastModified) {}
+    private record CacheEntry(String body, @Nullable String etag, @Nullable String lastModified) {}
 
     /**
      * @return the XML body, or null if not modified / on error.
      */
-    String fetch(String url) {
+    @Nullable String fetch(String url) {
         var cached = cache.get(url);
-        var builder = HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .timeout(Duration.ofSeconds(30))
-            .GET();
+        var builder =
+                HttpRequest.newBuilder().uri(URI.create(url)).timeout(Duration.ofSeconds(30)).GET();
 
         if (cached != null && cached.etag() != null) {
             builder.header("If-None-Match", cached.etag());
@@ -60,7 +60,10 @@ final class AppcastFetcher {
         return switch (response.statusCode()) {
             case 304 -> {
                 log.fine("Appcast not modified (304)");
-                yield cached != null ? cached.body() : null;
+                if (cached != null) {
+                    yield cached.body();
+                }
+                yield null;
             }
             case 200 -> {
                 var body = response.body();
@@ -70,7 +73,11 @@ final class AppcastFetcher {
                 yield body;
             }
             default -> {
-                log.warning("Unexpected HTTP " + response.statusCode() + " fetching appcast from " + url);
+                log.warning(
+                        "Unexpected HTTP "
+                                + response.statusCode()
+                                + " fetching appcast from "
+                                + url);
                 yield null;
             }
         };

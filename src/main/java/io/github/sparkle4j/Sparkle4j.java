@@ -2,10 +2,14 @@ package io.github.sparkle4j;
 
 import io.github.sparkle4j.apply.UpdateApplier;
 import io.github.sparkle4j.ui.UpdateDialog;
+
+import org.jspecify.annotations.Nullable;
 import org.xml.sax.SAXException;
 
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import javax.xml.parsers.ParserConfigurationException;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Duration;
@@ -60,11 +64,13 @@ public final class Sparkle4j {
         private final SignatureVerifier verifier;
         private final UpdateApplier applier;
 
-        private final java.util.concurrent.ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
-            var t = new Thread(r, "sparkle4j-checker");
-            t.setDaemon(true);
-            return t;
-        });
+        private final java.util.concurrent.ExecutorService executor =
+                Executors.newSingleThreadExecutor(
+                        r -> {
+                            var t = new Thread(r, "sparkle4j-checker");
+                            t.setDaemon(true);
+                            return t;
+                        });
 
         Sparkle4jInstanceImpl(Sparkle4jConfig config) {
             this.config = config;
@@ -77,20 +83,23 @@ public final class Sparkle4j {
 
         @Override
         public void checkInBackground() {
-            executor.submit(() -> {
-                try {
-                    var item = checkNow();
-                    if (item != null) {
-                        SwingUtilities.invokeLater(() -> presentUpdate(item));
-                    }
-                } catch (RuntimeException e) {
-                    log.warning("Unexpected error during background update check: " + e.getMessage());
-                }
-            });
+            executor.submit(
+                    () -> {
+                        try {
+                            var item = checkNow();
+                            if (item != null) {
+                                SwingUtilities.invokeLater(() -> presentUpdate(item));
+                            }
+                        } catch (RuntimeException e) {
+                            log.warning(
+                                    "Unexpected error during background update check: "
+                                            + e.getMessage());
+                        }
+                    });
         }
 
         @Override
-        public UpdateItem checkNow() {
+        public @Nullable UpdateItem checkNow() {
             if (!isCheckDue()) return null;
             var best = fetchAndParseBestUpdate();
             if (best == null) return null;
@@ -102,7 +111,8 @@ public final class Sparkle4j {
         @Override
         public void applyUpdate(UpdateItem item) {
             try {
-                var tempFile = new UpdateDownloader().download(item.url(), item.length(), (a, b) -> {});
+                var tempFile =
+                        new UpdateDownloader().download(item.url(), item.length(), (a, b) -> {});
                 installUpdate(item, tempFile);
             } catch (IOException e) {
                 log.severe("Download failed in applyUpdate: " + e.getMessage());
@@ -120,12 +130,17 @@ public final class Sparkle4j {
 
         void installUpdate(UpdateItem item, java.nio.file.Path tempFile) {
             if (item.edSignature() != null && !verifier.verify(tempFile, item.edSignature())) {
-                log.severe("Signature verification failed for " + item.version() + " — aborting update");
-                try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+                log.severe(
+                        "Signature verification failed for "
+                                + item.version()
+                                + " — aborting update");
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (IOException ignored) {
+                }
                 showErrorDialog(
-                    "The update could not be verified. It has been discarded for your safety.",
-                    "Verification Failed"
-                );
+                        "The update could not be verified. It has been discarded for your safety.",
+                        "Verification Failed");
                 return;
             }
             applier.apply(item, tempFile);
@@ -134,7 +149,9 @@ public final class Sparkle4j {
         private boolean isCheckDue() {
             if (config.checkIntervalHours() > 0) {
                 var last = prefs.getLastCheckTimestamp();
-                if (last != null && Duration.between(last, Instant.now()).toHours() < config.checkIntervalHours()) {
+                if (last != null
+                        && Duration.between(last, Instant.now()).toHours()
+                                < config.checkIntervalHours()) {
                     return false;
                 }
             }
@@ -145,7 +162,7 @@ public final class Sparkle4j {
             return true;
         }
 
-        private UpdateItem fetchAndParseBestUpdate() {
+        private @Nullable UpdateItem fetchAndParseBestUpdate() {
             String xml;
             try {
                 xml = fetcher.fetch(config.appcastUrl());
@@ -160,7 +177,10 @@ public final class Sparkle4j {
             try {
                 var items = parser.parse(xml);
                 return items.isEmpty() ? null : items.get(0);
-            } catch (RuntimeException | SAXException | IOException e) {
+            } catch (RuntimeException
+                    | SAXException
+                    | IOException
+                    | ParserConfigurationException e) {
                 log.severe("Failed to parse appcast: " + e.getMessage());
                 return null;
             }
@@ -174,9 +194,13 @@ public final class Sparkle4j {
         }
 
         private void showErrorDialog(String message, String title) {
-            SwingUtilities.invokeLater(() ->
-                JOptionPane.showMessageDialog(config.parentComponent(), message, title, JOptionPane.ERROR_MESSAGE)
-            );
+            SwingUtilities.invokeLater(
+                    () ->
+                            JOptionPane.showMessageDialog(
+                                    config.parentComponent(),
+                                    message,
+                                    title,
+                                    JOptionPane.ERROR_MESSAGE));
         }
     }
 }
