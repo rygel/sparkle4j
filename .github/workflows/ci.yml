@@ -18,16 +18,9 @@ jobs:
     permissions:
       contents: read
     strategy:
+      fail-fast: false
       matrix:
-        include:
-          - java-version: '17'
-            # Java 17: compile + test only (some quality plugins require 21+)
-            maven-goals: 'test'
-            maven-args: '-Dcheckstyle.skip -Dspotless.check.skip -Dpmd.skip -Dspotbugs.skip -Dmodernizer.skip -Dtidy.check.skip'
-          - java-version: '21'
-            # Java 21: full verify with all quality tools
-            maven-goals: 'verify'
-            maven-args: ''
+        java-version: ['17', '21']
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -40,4 +33,4 @@ jobs:
           cache: 'maven'
 
       - name: Build and test
-        run: mvn ${{ matrix.maven-goals }} -T 4 ${{ matrix.maven-args }}
+        run: mvn verify -T 4
