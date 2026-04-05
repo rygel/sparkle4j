@@ -1,16 +1,20 @@
 package io.github.sparkle4j;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.Comparator;
 
 /**
  * SemVer 2.0 comparator.
  *
  * <ul>
- *   <li>Numeric comparison per segment (not lexicographic).</li>
- *   <li>Pre-release qualifiers (-alpha, -beta, -rc.1) sort below the release version.</li>
+ *   <li>Numeric comparison per segment (not lexicographic).
+ *   <li>Pre-release qualifiers (-alpha, -beta, -rc.1) sort below the release version.
  * </ul>
  */
-public final class VersionComparator implements Comparator<String> {
+public final class VersionComparator implements Comparator<String>, java.io.Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     public static final VersionComparator INSTANCE = new VersionComparator();
 
@@ -32,12 +36,12 @@ public final class VersionComparator implements Comparator<String> {
         }
 
         if (pa.preRelease == null && pb.preRelease == null) return 0;
-        if (pa.preRelease == null) return 1;   // release > pre-release
-        if (pb.preRelease == null) return -1;   // pre-release < release
+        if (pa.preRelease == null) return 1; // release > pre-release
+        if (pb.preRelease == null) return -1; // pre-release < release
         return pa.preRelease.compareTo(pb.preRelease);
     }
 
-    private record Parsed(int[] numbers, String preRelease) {}
+    private record Parsed(int[] numbers, @Nullable String preRelease) {}
 
     private static Parsed parse(String version) {
         var parts = version.trim().split("-", 2);
