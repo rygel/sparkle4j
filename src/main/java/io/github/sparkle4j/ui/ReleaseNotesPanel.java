@@ -2,6 +2,8 @@ package io.github.sparkle4j.ui;
 
 import javax.swing.JEditorPane;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import java.awt.Color;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -22,8 +24,8 @@ import java.util.regex.Pattern;
 final class ReleaseNotesPanel extends JEditorPane {
 
     private static final Logger log = Logger.getLogger(ReleaseNotesPanel.class.getName());
-    private static final String NO_NOTES_HTML = "<html><body><p>No release notes available.</p></body></html>";
-    private static final String LOAD_FAILED_HTML = "<html><body><p>Could not load release notes.</p></body></html>";
+    private static final String NO_NOTES_MSG = "No release notes available.";
+    private static final String LOAD_FAILED_MSG = "Could not load release notes.";
 
     private static final Pattern LINK_PATTERN = Pattern.compile("\\[(.+?)]\\((.+?)\\)");
     private static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*(.+?)\\*\\*");
@@ -44,10 +46,10 @@ final class ReleaseNotesPanel extends JEditorPane {
                 } else if (inlineDescription.trim().startsWith("<")) {
                     setText(inlineDescription);
                 } else {
-                    setText("<html><body><p>" + htmlEscape(inlineDescription) + "</p></body></html>");
+                    setText("<html><body style='" + bodyStyle() + "'><p>" + htmlEscape(inlineDescription) + "</p></body></html>");
                 }
             } else {
-                setText(NO_NOTES_HTML);
+                setText("<html><body style='" + bodyStyle() + "'><p>" + NO_NOTES_MSG + "</p></body></html>");
             }
             return;
         }
@@ -66,10 +68,10 @@ final class ReleaseNotesPanel extends JEditorPane {
                 }
             } catch (IOException e) {
                 log.warning("Could not load release notes from " + releaseNotesUrl + ": " + e.getMessage());
-                html = LOAD_FAILED_HTML;
+                html = "<html><body style='" + bodyStyle() + "'><p>" + LOAD_FAILED_MSG + "</p></body></html>";
             } catch (IllegalArgumentException e) {
                 log.warning("Invalid release notes URL " + releaseNotesUrl + ": " + e.getMessage());
-                html = LOAD_FAILED_HTML;
+                html = "<html><body style='" + bodyStyle() + "'><p>" + LOAD_FAILED_MSG + "</p></body></html>";
             }
             var finalHtml = html;
             SwingUtilities.invokeLater(() -> setText(finalHtml));
@@ -111,12 +113,12 @@ final class ReleaseNotesPanel extends JEditorPane {
         var nodeClass = Class.forName("com.vladsch.flexmark.util.ast.Node");
         var html = (String) renderer.getClass().getMethod("render", nodeClass).invoke(renderer, document);
 
-        return "<html><body style='font-family:sans-serif;padding:8px'>" + html + "</body></html>";
+        return "<html><body style='" + bodyStyle() + "'>" + html + "</body></html>";
     }
 
     /** CommonMark subset: headings, bold, lists, code blocks, links, paragraphs. */
     private static String minimalMarkdownToHtml(String markdown) {
-        var sb = new StringBuilder("<html><body style='font-family:sans-serif;padding:8px'>");
+        var sb = new StringBuilder("<html><body style='" + bodyStyle() + "'>");
         var lines = markdown.split("\n", -1);
         boolean inCode = false;
 
@@ -143,6 +145,18 @@ final class ReleaseNotesPanel extends JEditorPane {
 
         sb.append("</body></html>");
         return sb.toString();
+    }
+
+    private static String bodyStyle() {
+        Color fg = UIManager.getColor("EditorPane.foreground");
+        Color bg = UIManager.getColor("EditorPane.background");
+        String fgHex = fg != null ? colorToHex(fg) : "#000000";
+        String bgHex = bg != null ? colorToHex(bg) : "#FFFFFF";
+        return String.format("font-family:sans-serif;padding:8px;color:%s;background-color:%s", fgHex, bgHex);
+    }
+
+    private static String colorToHex(Color c) {
+        return String.format("#%02X%02X%02X", c.getRed(), c.getGreen(), c.getBlue());
     }
 
     private static String htmlEscape(String s) {
