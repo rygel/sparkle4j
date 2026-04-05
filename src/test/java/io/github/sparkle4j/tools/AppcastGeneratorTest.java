@@ -225,4 +225,70 @@ class AppcastGeneratorTest {
         assertTrue(result.contains("<title>MyApp 1.0.0</title>"));
         assertTrue(result.contains("<sparkle:version>1.0.0</sparkle:version>"));
     }
+
+    // --- loadPrivateKey ---
+
+    @Test
+    @DisplayName("loadPrivateKey round-trips with generated key")
+    void loadPrivateKeyRoundTrip() throws Exception {
+        var keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        var pkcs8Bytes = keyPair.getPrivate().getEncoded();
+        var base64 = Base64.getEncoder().encodeToString(pkcs8Bytes);
+
+        var loaded = invokeStatic("loadPrivateKey", new Class<?>[] {String.class}, base64);
+
+        assertNotNull(loaded);
+        assertEquals("EdDSA", ((PrivateKey) loaded).getAlgorithm());
+    }
+
+    @Test
+    @DisplayName("loadPrivateKey throws on invalid base64")
+    void loadPrivateKeyInvalidBase64() {
+        assertThrows(
+                AssertionError.class,
+                () ->
+                        invokeStatic(
+                                "loadPrivateKey", new Class<?>[] {String.class}, "not-base64!!!"));
+    }
+
+    // --- requireEnv ---
+
+    @Test
+    @DisplayName("requireEnv throws on missing environment variable")
+    void requireEnvThrowsMissing() {
+        assertThrows(
+                AssertionError.class,
+                () ->
+                        invokeStatic(
+                                "requireEnv",
+                                new Class<?>[] {String.class},
+                                "SPARKLE4J_NONEXISTENT_VAR_" + System.nanoTime()));
+    }
+
+    // --- insertItem preserves multiple existing items ---
+
+    @Test
+    @DisplayName("insertItem preserves all existing items when prepending")
+    void insertItemPreservesAll() {
+        var existing =
+                """
+                <rss><channel>
+                    <item><title>v1.0</title></item>
+                    <item><title>v0.9</title></item>
+                </channel></rss>""";
+        var newItem = "<item><title>v1.1</title></item>";
+
+        var result =
+                (String)
+                        invokeStatic(
+                                "insertItem",
+                                new Class<?>[] {String.class, String.class},
+                                existing,
+                                newItem);
+
+        assertTrue(result.contains("v1.1"));
+        assertTrue(result.contains("v1.0"));
+        assertTrue(result.contains("v0.9"));
+        assertTrue(result.indexOf("v1.1") < result.indexOf("v1.0"));
+    }
 }
