@@ -83,6 +83,8 @@
         <exclude name="AvoidDuplicateLiterals"/>
         <!-- Test helper inner classes don't need test methods -->
         <exclude name="TestClassWithoutTestCases"/>
+        <!-- Reflection setAccessible is needed to test package-private methods -->
+        <exclude name="AvoidAccessibilityAlteration"/>
     </rule>
 
     <!-- Multithreading -->
