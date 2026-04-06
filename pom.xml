@@ -293,8 +293,11 @@
                 <configuration>
                     <forkedProcessTimeoutInSeconds>${surefire.timeout}</forkedProcessTimeoutInSeconds>
                     <excludes>
-                        <!-- Desktop/Swing tests need Xvfb: run with -Ptest-desktop -->
+                        <!-- Desktop/Swing and applier tests: run with -Ptest-desktop in a container -->
                         <exclude>**/ui/UpdateDialogTest.java</exclude>
+                        <exclude>**/apply/LinuxApplierTest.java</exclude>
+                        <exclude>**/apply/MacosApplierTest.java</exclude>
+                        <exclude>**/apply/WindowsApplierTest.java</exclude>
                     </excludes>
                     <properties>
                         <configurationParameters>
