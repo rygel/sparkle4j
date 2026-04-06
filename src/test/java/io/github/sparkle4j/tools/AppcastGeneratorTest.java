@@ -4,15 +4,23 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.util.Base64;
+import java.util.List;
 
+@SuppressWarnings("NullAway.Init")
 class AppcastGeneratorTest {
+
+    @TempDir Path tempDir;
 
     private static Object invokeStatic(String methodName, Class<?>[] paramTypes, Object... args) {
         try {
@@ -290,5 +298,216 @@ class AppcastGeneratorTest {
         assertTrue(result.contains("v1.0"));
         assertTrue(result.contains("v0.9"));
         assertTrue(result.indexOf("v1.1") < result.indexOf("v1.0"));
+    }
+
+    // --- buildEnclosures ---
+
+    @SuppressWarnings("unchecked")
+    private Object createInstaller(Path path, String os, String ext) {
+        try {
+            Class<?> installerClass =
+                    Class.forName("io.github.sparkle4j.tools.AppcastGenerator$Installer");
+            Constructor<?> ctor =
+                    installerClass.getDeclaredConstructor(Path.class, String.class, String.class);
+            ctor.setAccessible(true);
+            return ctor.newInstance(path, os, ext);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    @Test
+    @DisplayName("buildEnclosures generates enclosure XML with signature and hash")
+    void buildEnclosuresGeneratesXml() throws Exception {
+        var installer = tempDir.resolve("app-setup.exe");
+        Files.write(installer, "fake installer bytes".getBytes(StandardCharsets.UTF_8));
+
+        var keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        var installerObj = createInstaller(installer, "windows", "exe");
+
+        Method method =
+                AppcastGenerator.class.getDeclaredMethod(
+                        "buildEnclosures", List.class, String.class, PrivateKey.class);
+        method.setAccessible(true);
+
+        var result =
+                (String)
+                        method.invoke(
+                                null,
+                                List.of(installerObj),
+                                "https://dl.example.com",
+                                keyPair.getPrivate());
+
+        assertTrue(result.contains("url=\"https://dl.example.com/app-setup.exe\""));
+        assertTrue(result.contains("sparkle:os=\"windows\""));
+        assertTrue(result.contains("sparkle:edSignature="));
+        assertTrue(result.contains("sparkle:sha256="));
+        assertTrue(result.contains("type=\"application/octet-stream\""));
+        assertTrue(result.contains("length=\""));
+    }
+
+    @Test
+    @DisplayName("buildEnclosures handles multiple installers")
+    void buildEnclosuresMultiple() throws Exception {
+        var winInstaller = tempDir.resolve("app.exe");
+        var macInstaller = tempDir.resolve("app.zip");
+        Files.write(winInstaller, "win".getBytes(StandardCharsets.UTF_8));
+        Files.write(macInstaller, "mac".getBytes(StandardCharsets.UTF_8));
+
+        var keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+
+        Method method =
+                AppcastGenerator.class.getDeclaredMethod(
+                        "buildEnclosures", List.class, String.class, PrivateKey.class);
+        method.setAccessible(true);
+
+        var result =
+                (String)
+                        method.invoke(
+                                null,
+                                List.of(
+                                        createInstaller(winInstaller, "windows", "exe"),
+                                        createInstaller(macInstaller, "macos", "zip")),
+                                "https://dl.example.com",
+                                keyPair.getPrivate());
+
+        assertTrue(result.contains("sparkle:os=\"windows\""));
+        assertTrue(result.contains("sparkle:os=\"macos\""));
+        assertTrue(result.contains("type=\"application/octet-stream\""));
+        assertTrue(result.contains("type=\"application/zip\""));
+    }
+
+    // --- end-to-end: buildItem + insertItem into skeleton ---
+
+    @Test
+    @DisplayName("full flow: skeleton + buildItem + insertItem produces valid appcast")
+    void fullFlowProducesValidAppcast() throws Exception {
+        var skeleton =
+                (String) invokeStatic("minimalRssSkeleton", new Class<?>[] {String.class}, "MyApp");
+
+        var item =
+                (String)
+                        invokeStatic(
+                                "buildItem",
+                                new Class<?>[] {
+                                    String.class,
+                                    String.class,
+                                    String.class,
+                                    String.class,
+                                    String.class
+                                },
+                                "MyApp",
+                                "1.0.0",
+                                "Sat, 05 Apr 2026 00:00:00 UTC",
+                                "https://example.com/notes",
+                                "<enclosure url=\"https://dl.example.com/app.exe\"/>");
+
+        var result =
+                (String)
+                        invokeStatic(
+                                "insertItem",
+                                new Class<?>[] {String.class, String.class},
+                                skeleton,
+                                item);
+
+        assertTrue(result.contains("<rss version=\"2.0\""));
+        assertTrue(result.contains("<title>MyApp 1.0.0</title>"));
+        assertTrue(result.contains("<sparkle:version>1.0.0</sparkle:version>"));
+        assertTrue(result.contains("sparkle:releaseNotesLink"));
+        assertTrue(result.contains("<enclosure url=\"https://dl.example.com/app.exe\"/>"));
+        assertTrue(result.contains("</channel>"));
+        assertTrue(result.contains("</rss>"));
+    }
+
+    @Test
+    @DisplayName("full flow: two versions inserted in correct order")
+    void fullFlowTwoVersionsOrdered() throws Exception {
+        var skeleton =
+                (String) invokeStatic("minimalRssSkeleton", new Class<?>[] {String.class}, "MyApp");
+
+        var v1 =
+                (String)
+                        invokeStatic(
+                                "buildItem",
+                                new Class<?>[] {
+                                    String.class,
+                                    String.class,
+                                    String.class,
+                                    String.class,
+                                    String.class
+                                },
+                                "MyApp",
+                                "1.0.0",
+                                "Sat, 01 Jan 2026",
+                                "https://example.com/notes/1.0",
+                                "<enclosure/>");
+
+        var afterV1 =
+                (String)
+                        invokeStatic(
+                                "insertItem",
+                                new Class<?>[] {String.class, String.class},
+                                skeleton,
+                                v1);
+
+        @SuppressWarnings("NullAway")
+        var v2 =
+                (String)
+                        invokeStatic(
+                                "buildItem",
+                                new Class<?>[] {
+                                    String.class,
+                                    String.class,
+                                    String.class,
+                                    String.class,
+                                    String.class
+                                },
+                                "MyApp",
+                                "2.0.0",
+                                "Sat, 05 Apr 2026",
+                                (String) null,
+                                "<enclosure/>");
+
+        var afterV2 =
+                (String)
+                        invokeStatic(
+                                "insertItem",
+                                new Class<?>[] {String.class, String.class},
+                                afterV1,
+                                v2);
+
+        // v2 should appear before v1 (prepended)
+        assertTrue(afterV2.indexOf("2.0.0") < afterV2.indexOf("1.0.0"));
+    }
+
+    // --- sha256Hex consistency ---
+
+    @Test
+    @DisplayName("sha256Hex produces same result for same input")
+    void sha256HexConsistent() {
+        var data = "deterministic".getBytes(StandardCharsets.UTF_8);
+        var hash1 =
+                (String) invokeStatic("sha256Hex", new Class<?>[] {byte[].class}, (Object) data);
+        var hash2 =
+                (String) invokeStatic("sha256Hex", new Class<?>[] {byte[].class}, (Object) data);
+        assertEquals(hash1, hash2);
+    }
+
+    @Test
+    @DisplayName("sha256Hex produces different result for different input")
+    void sha256HexDifferentForDifferentInput() {
+        var hash1 =
+                (String)
+                        invokeStatic(
+                                "sha256Hex",
+                                new Class<?>[] {byte[].class},
+                                (Object) "aaa".getBytes(StandardCharsets.UTF_8));
+        var hash2 =
+                (String)
+                        invokeStatic(
+                                "sha256Hex",
+                                new Class<?>[] {byte[].class},
+                                (Object) "bbb".getBytes(StandardCharsets.UTF_8));
+        assertNotEquals(hash1, hash2);
     }
 }
