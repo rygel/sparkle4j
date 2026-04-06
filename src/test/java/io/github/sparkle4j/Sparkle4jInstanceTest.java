@@ -494,4 +494,45 @@ class Sparkle4jInstanceTest {
         assertNull(config.onUpdateFound());
         assertNull(config.macosAppPath());
     }
+
+    // --- presentUpdate with hook ---
+
+    @SuppressWarnings("NullAway")
+    private void callPresentUpdate(Object instance, UpdateItem item) {
+        try {
+            Method method =
+                    instance.getClass().getDeclaredMethod("presentUpdate", UpdateItem.class);
+            method.setAccessible(true);
+            method.invoke(instance, item);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    @Test
+    @DisplayName("presentUpdate with hook returning false does not show dialog")
+    void presentUpdateHookReturnsFalse() {
+        var hookCalled = new java.util.concurrent.atomic.AtomicBoolean(false);
+        var appName = "sparkle4j-hook-" + System.nanoTime();
+        var config =
+                new Sparkle4jConfig(
+                        "https://example.com/appcast.xml",
+                        "1.0.0",
+                        null,
+                        0,
+                        null,
+                        appName,
+                        item -> {
+                            hookCalled.set(true);
+                            return false;
+                        },
+                        null);
+        var instance = Sparkle4j.createInstance(config);
+
+        @SuppressWarnings("NullAway")
+        var item = fakeUpdateItem(null);
+        callPresentUpdate(instance, item);
+
+        assertTrue(hookCalled.get());
+    }
 }

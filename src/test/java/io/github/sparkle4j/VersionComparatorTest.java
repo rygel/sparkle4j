@@ -103,4 +103,17 @@ class VersionComparatorTest {
     void rcOrdering() {
         assertTrue(VersionComparator.isNewer("1.0.0-rc.2", "1.0.0-rc.1"));
     }
+
+    @Test
+    @DisplayName("non-numeric version segment defaults to 0")
+    void nonNumericSegmentDefaultsToZero() {
+        // "abc" can't be parsed as int, should default to 0
+        assertEquals(0, VersionComparator.INSTANCE.compare("abc", "0.0.0"));
+    }
+
+    @Test
+    @DisplayName("version with leading/trailing whitespace is trimmed")
+    void versionWithWhitespace() {
+        assertEquals(0, VersionComparator.INSTANCE.compare("  1.0.0  ", "1.0.0"));
+    }
 }
