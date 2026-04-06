@@ -420,4 +420,78 @@ class Sparkle4jInstanceTest {
         var instance = Sparkle4j.createInstance(config);
         assertNull(callFetchAndParse(instance));
     }
+
+    // --- applyUpdate with WireMock download + invalid signature (error path) ---
+
+    @Test
+    @DisplayName("applyUpdate with invalid signature logs error and does not throw")
+    void applyUpdateInvalidSignature() {
+        var keyPair =
+                assertDoesNotThrow(() -> KeyPairGenerator.getInstance("Ed25519").generateKeyPair());
+        var publicKeyBase64 = Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded());
+
+        wireMock.stubFor(
+                get(urlEqualTo("/update.exe"))
+                        .willReturn(
+                                aResponse().withStatus(200).withBody("fake installer content")));
+
+        var appName = "sparkle4j-apply-" + System.nanoTime();
+        var config =
+                new Sparkle4jConfig(
+                        "https://example.com/appcast.xml",
+                        "1.0.0",
+                        publicKeyBase64,
+                        0,
+                        null,
+                        appName,
+                        null,
+                        null);
+        var instance = Sparkle4j.createInstance(config);
+
+        @SuppressWarnings("NullAway")
+        var item =
+                new UpdateItem(
+                        "Test 2.0.0",
+                        "2.0.0",
+                        "2.0.0",
+                        "http://localhost:" + wireMock.getPort() + "/update.exe",
+                        21,
+                        "aW52YWxpZA==",
+                        null,
+                        null,
+                        null,
+                        null,
+                        AppcastParser.currentOs(),
+                        false,
+                        "exe");
+
+        assertDoesNotThrow(() -> instance.applyUpdate(item));
+    }
+
+    // --- Sparkle4jConfig record ---
+
+    @SuppressWarnings("NullAway")
+    @Test
+    @DisplayName("Sparkle4jConfig record accessors work")
+    void configRecordAccessors() {
+        var config =
+                new Sparkle4jConfig(
+                        "https://example.com/appcast.xml",
+                        "1.0.0",
+                        "key",
+                        12,
+                        null,
+                        "TestApp",
+                        null,
+                        null);
+
+        assertEquals("https://example.com/appcast.xml", config.appcastUrl());
+        assertEquals("1.0.0", config.currentVersion());
+        assertEquals("key", config.publicKey());
+        assertEquals(12, config.checkIntervalHours());
+        assertNull(config.parentComponent());
+        assertEquals("TestApp", config.appName());
+        assertNull(config.onUpdateFound());
+        assertNull(config.macosAppPath());
+    }
 }

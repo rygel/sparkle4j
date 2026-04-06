@@ -384,8 +384,17 @@ class ReleaseNotesPanelTest {
         assertNotNull(panel);
     }
 
+    private static void waitForContent(ReleaseNotesPanel panel, String expected)
+            throws InterruptedException {
+        for (int i = 0; i < 20; i++) {
+            if (panel.getText().contains(expected)) return;
+            Thread.sleep(100);
+        }
+        assertTrue(panel.getText().contains(expected), "Expected content not found after 2s");
+    }
+
     @Test
-    @DisplayName("constructor with remote URL starts async thread")
+    @DisplayName("constructor with remote URL loads content asynchronously")
     void constructorWithUrl() throws InterruptedException {
         wireMock.stubFor(
                 get(urlEqualTo("/release-notes.html"))
@@ -394,10 +403,7 @@ class ReleaseNotesPanelTest {
         var url = "http://localhost:" + wireMock.getPort() + "/release-notes.html";
         var panel = new ReleaseNotesPanel(url, null);
         assertNotNull(panel);
-        // Give the async thread time to load
-        Thread.sleep(500);
-        var text = panel.getText();
-        assertTrue(text.contains("Remote Notes"));
+        waitForContent(panel, "Remote Notes");
     }
 
     @SuppressWarnings("NullAway")
@@ -410,8 +416,7 @@ class ReleaseNotesPanelTest {
 
         var url = "http://localhost:" + wireMock.getPort() + "/notes.md";
         var panel = new ReleaseNotesPanel(url, null);
-        Thread.sleep(500);
-        var text = panel.getText();
-        assertTrue(text.contains("Changelog"));
+        assertNotNull(panel);
+        waitForContent(panel, "Changelog");
     }
 }
