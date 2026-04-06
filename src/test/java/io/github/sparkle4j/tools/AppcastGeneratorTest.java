@@ -376,4 +376,138 @@ class AppcastGeneratorTest {
         assertTrue(result.contains("type=\"application/octet-stream\""));
         assertTrue(result.contains("type=\"application/zip\""));
     }
+
+    // --- end-to-end: buildItem + insertItem into skeleton ---
+
+    @Test
+    @DisplayName("full flow: skeleton + buildItem + insertItem produces valid appcast")
+    void fullFlowProducesValidAppcast() throws Exception {
+        var skeleton =
+                (String) invokeStatic("minimalRssSkeleton", new Class<?>[] {String.class}, "MyApp");
+
+        var item =
+                (String)
+                        invokeStatic(
+                                "buildItem",
+                                new Class<?>[] {
+                                    String.class,
+                                    String.class,
+                                    String.class,
+                                    String.class,
+                                    String.class
+                                },
+                                "MyApp",
+                                "1.0.0",
+                                "Sat, 05 Apr 2026 00:00:00 UTC",
+                                "https://example.com/notes",
+                                "<enclosure url=\"https://dl.example.com/app.exe\"/>");
+
+        var result =
+                (String)
+                        invokeStatic(
+                                "insertItem",
+                                new Class<?>[] {String.class, String.class},
+                                skeleton,
+                                item);
+
+        assertTrue(result.contains("<rss version=\"2.0\""));
+        assertTrue(result.contains("<title>MyApp 1.0.0</title>"));
+        assertTrue(result.contains("<sparkle:version>1.0.0</sparkle:version>"));
+        assertTrue(result.contains("sparkle:releaseNotesLink"));
+        assertTrue(result.contains("<enclosure url=\"https://dl.example.com/app.exe\"/>"));
+        assertTrue(result.contains("</channel>"));
+        assertTrue(result.contains("</rss>"));
+    }
+
+    @Test
+    @DisplayName("full flow: two versions inserted in correct order")
+    void fullFlowTwoVersionsOrdered() throws Exception {
+        var skeleton =
+                (String) invokeStatic("minimalRssSkeleton", new Class<?>[] {String.class}, "MyApp");
+
+        var v1 =
+                (String)
+                        invokeStatic(
+                                "buildItem",
+                                new Class<?>[] {
+                                    String.class,
+                                    String.class,
+                                    String.class,
+                                    String.class,
+                                    String.class
+                                },
+                                "MyApp",
+                                "1.0.0",
+                                "Sat, 01 Jan 2026",
+                                "https://example.com/notes/1.0",
+                                "<enclosure/>");
+
+        var afterV1 =
+                (String)
+                        invokeStatic(
+                                "insertItem",
+                                new Class<?>[] {String.class, String.class},
+                                skeleton,
+                                v1);
+
+        @SuppressWarnings("NullAway")
+        var v2 =
+                (String)
+                        invokeStatic(
+                                "buildItem",
+                                new Class<?>[] {
+                                    String.class,
+                                    String.class,
+                                    String.class,
+                                    String.class,
+                                    String.class
+                                },
+                                "MyApp",
+                                "2.0.0",
+                                "Sat, 05 Apr 2026",
+                                (String) null,
+                                "<enclosure/>");
+
+        var afterV2 =
+                (String)
+                        invokeStatic(
+                                "insertItem",
+                                new Class<?>[] {String.class, String.class},
+                                afterV1,
+                                v2);
+
+        // v2 should appear before v1 (prepended)
+        assertTrue(afterV2.indexOf("2.0.0") < afterV2.indexOf("1.0.0"));
+    }
+
+    // --- sha256Hex consistency ---
+
+    @Test
+    @DisplayName("sha256Hex produces same result for same input")
+    void sha256HexConsistent() {
+        var data = "deterministic".getBytes(StandardCharsets.UTF_8);
+        var hash1 =
+                (String) invokeStatic("sha256Hex", new Class<?>[] {byte[].class}, (Object) data);
+        var hash2 =
+                (String) invokeStatic("sha256Hex", new Class<?>[] {byte[].class}, (Object) data);
+        assertEquals(hash1, hash2);
+    }
+
+    @Test
+    @DisplayName("sha256Hex produces different result for different input")
+    void sha256HexDifferentForDifferentInput() {
+        var hash1 =
+                (String)
+                        invokeStatic(
+                                "sha256Hex",
+                                new Class<?>[] {byte[].class},
+                                (Object) "aaa".getBytes(StandardCharsets.UTF_8));
+        var hash2 =
+                (String)
+                        invokeStatic(
+                                "sha256Hex",
+                                new Class<?>[] {byte[].class},
+                                (Object) "bbb".getBytes(StandardCharsets.UTF_8));
+        assertNotEquals(hash1, hash2);
+    }
 }
