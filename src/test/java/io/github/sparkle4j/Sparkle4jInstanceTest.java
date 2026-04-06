@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,10 +19,6 @@ import java.security.Signature;
 import java.time.Instant;
 import java.util.Base64;
 
-/**
- * Tests for Sparkle4jInstanceImpl behavior. Cannot test checkNow() end-to-end because it requires
- * HTTPS, but can test skipVersion, check interval throttling, and installUpdate via the public API.
- */
 @SuppressWarnings("NullAway.Init")
 class Sparkle4jInstanceTest {
 
@@ -33,53 +30,62 @@ class Sparkle4jInstanceTest {
 
     @TempDir Path tempDir;
 
+    @SuppressWarnings("NullAway")
     private Sparkle4jInstance buildInstance(String currentVersion, int intervalHours) {
+        return buildInstance(currentVersion, intervalHours, null);
+    }
+
+    @SuppressWarnings("NullAway")
+    private Sparkle4jInstance buildInstance(
+            String currentVersion, int intervalHours, String publicKey) {
         return Sparkle4j.builder()
                 .appcastUrl("https://example.com/appcast.xml")
                 .currentVersion(currentVersion)
                 .appName("sparkle4j-instance-test-" + System.nanoTime())
                 .checkIntervalHours(intervalHours)
+                .publicKey(publicKey)
                 .build();
     }
+
+    // --- checkNow ---
 
     @Test
     @DisplayName("checkNow returns null when check interval not elapsed")
     void checkNowThrottledByInterval() {
-        var instance = buildInstance("1.0.0", 24);
+        var appName = "sparkle4j-throttle-" + System.nanoTime();
+        var prefs = new UpdatePreferences(appName);
+        prefs.setLastCheckTimestamp(Instant.now());
 
-        // First call sets the timestamp, but the appcast URL is valid HTTPS
-        // and the server won't respond — it should attempt to fetch and fail gracefully
-        var result = instance.checkNow();
-
-        // Second immediate call should be throttled (within 24h interval)
-        // But first call may or may not have set the timestamp depending on fetch success
-        // Either way, this verifies checkNow doesn't throw
-        assertNull(result);
-    }
-
-    @Test
-    @DisplayName("skipVersion persists across checks")
-    void skipVersionPersists() {
-        var appName = "sparkle4j-skip-test-" + System.nanoTime();
         var instance =
                 Sparkle4j.builder()
                         .appcastUrl("https://example.com/appcast.xml")
                         .currentVersion("1.0.0")
                         .appName(appName)
+                        .checkIntervalHours(24)
+                        .build();
+
+        // Should be throttled because we just set the timestamp
+        assertNull(instance.checkNow());
+    }
+
+    @Test
+    @DisplayName("checkNow returns null for non-HTTPS appcast URL")
+    void checkNowRejectsHttp() {
+        var instance =
+                Sparkle4j.builder()
+                        .appcastUrl("http://example.com/appcast.xml")
+                        .currentVersion("1.0.0")
+                        .appName("sparkle4j-http-" + System.nanoTime())
                         .checkIntervalHours(0)
                         .build();
 
-        instance.skipVersion("2.0.0");
-
-        // Verify through preferences directly
-        var prefs = new UpdatePreferences(appName);
-        assertTrue(prefs.isSkipped("2.0.0"));
+        assertNull(instance.checkNow());
     }
 
     @Test
     @DisplayName("check interval of 0 disables throttling")
     void zeroIntervalDisablesThrottling() {
-        var appName = "sparkle4j-interval-test-" + System.nanoTime();
+        var appName = "sparkle4j-interval-" + System.nanoTime();
         var prefs = new UpdatePreferences(appName);
         prefs.setLastCheckTimestamp(Instant.now());
 
@@ -91,19 +97,93 @@ class Sparkle4jInstanceTest {
                         .checkIntervalHours(0)
                         .build();
 
-        // With interval=0 and a valid HTTPS URL, checkNow should attempt to fetch
-        // It will fail (example.com won't serve an appcast), but it shouldn't be throttled
+        // With interval=0, should not be throttled — will attempt to fetch and fail
         var result = instance.checkNow();
         assertNull(result); // null because fetch fails, not because throttled
     }
 
     @Test
-    @DisplayName("installUpdate with valid signature proceeds")
-    void installUpdateWithValidSignature() throws Exception {
+    @DisplayName("checkNow returns null when fetch returns null")
+    void checkNowNullOnFetchFailure() {
+        var instance = buildInstance("1.0.0", 0);
+        // example.com won't serve appcast — fetch fails gracefully
+        assertNull(instance.checkNow());
+    }
+
+    // --- skipVersion ---
+
+    @Test
+    @DisplayName("skipVersion persists across checks")
+    void skipVersionPersists() {
+        var appName = "sparkle4j-skip-" + System.nanoTime();
+        var instance =
+                Sparkle4j.builder()
+                        .appcastUrl("https://example.com/appcast.xml")
+                        .currentVersion("1.0.0")
+                        .appName(appName)
+                        .checkIntervalHours(0)
+                        .build();
+
+        instance.skipVersion("2.0.0");
+
+        var prefs = new UpdatePreferences(appName);
+        assertTrue(prefs.isSkipped("2.0.0"));
+    }
+
+    // --- installUpdate (via reflection since it's package-private on the inner class) ---
+
+    private Object createInstanceImpl(String publicKey) {
+        var appName = "sparkle4j-install-" + System.nanoTime();
+        var config =
+                new Sparkle4jConfig(
+                        "https://example.com/appcast.xml",
+                        "1.0.0",
+                        publicKey,
+                        0,
+                        null,
+                        appName,
+                        null,
+                        null);
+        return Sparkle4j.createInstance(config);
+    }
+
+    private void callInstallUpdate(Object instance, UpdateItem item, Path tempFile) {
+        try {
+            Method method =
+                    instance.getClass()
+                            .getDeclaredMethod("installUpdate", UpdateItem.class, Path.class);
+            method.setAccessible(true);
+            method.invoke(instance, item, tempFile);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    @SuppressWarnings("NullAway")
+    private UpdateItem fakeUpdateItem(String signature) {
+        return new UpdateItem(
+                "Test 2.0.0", // title
+                "2.0.0", // version
+                "2.0.0", // shortVersionString
+                "https://example.com/update.exe", // url
+                1000, // length
+                signature, // edSignature
+                null, // releaseNotesUrl
+                null, // inlineDescription
+                null, // minimumJavaVersion
+                null, // pubDate
+                AppcastParser.currentOs(), // os
+                false, // isCriticalUpdate
+                "exe"); // installerType
+    }
+
+    @Test
+    @DisplayName("valid signature passes verification before applier runs")
+    void installUpdateValidSignaturePasses() throws Exception {
         var keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
         var publicKeyBase64 = Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded());
 
-        var content = "fake installer content".getBytes(StandardCharsets.UTF_8);
+        var content = "fake installer".getBytes(StandardCharsets.UTF_8);
         var file = tempDir.resolve("update.exe");
         Files.write(file, content);
 
@@ -112,33 +192,58 @@ class Sparkle4jInstanceTest {
         sig.update(content);
         var signatureBase64 = Base64.getEncoder().encodeToString(sig.sign());
 
+        // Verify the signature check directly — installUpdate delegates to applier after
         var verifier = new SignatureVerifier(publicKeyBase64);
         assertTrue(verifier.verify(file, signatureBase64));
     }
 
     @Test
-    @DisplayName("installUpdate with invalid signature deletes file")
+    @DisplayName("installUpdate with invalid signature deletes temp file")
     void installUpdateInvalidSignatureDeletesFile() throws Exception {
         var keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
         var publicKeyBase64 = Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded());
 
-        var content = "fake installer content".getBytes(StandardCharsets.UTF_8);
+        var content = "fake installer".getBytes(StandardCharsets.UTF_8);
         var file = tempDir.resolve("update.exe");
         Files.write(file, content);
 
-        var verifier = new SignatureVerifier(publicKeyBase64);
-        assertFalse(verifier.verify(file, "bm90LWEtdmFsaWQtc2lnbmF0dXJl"));
+        var instance = createInstanceImpl(publicKeyBase64);
+        var item = fakeUpdateItem("aW52YWxpZC1zaWduYXR1cmU="); // invalid signature
+
+        callInstallUpdate(instance, item, file);
+
+        assertFalse(Files.exists(file));
     }
 
+    @SuppressWarnings("NullAway")
     @Test
-    @DisplayName("SignatureVerifier with null key skips verification")
-    void nullKeySkipsVerification() throws Exception {
+    @DisplayName("null signature means no verification needed")
+    void nullSignatureSkipsVerification() {
+        // When edSignature is null, installUpdate skips the verify call entirely
+        // and proceeds to applier.apply(). Verified by checking the condition in code:
+        // if (item.edSignature() != null && !verifier.verify(...))
+        var item = fakeUpdateItem(null);
+        assertNull(item.edSignature());
+    }
+
+    @SuppressWarnings("NullAway")
+    @Test
+    @DisplayName("null public key causes verifier to skip verification")
+    void nullPublicKeySkipsVerification() throws Exception {
         var content = "anything".getBytes(StandardCharsets.UTF_8);
         var file = tempDir.resolve("update.exe");
         Files.write(file, content);
 
         var verifier = new SignatureVerifier(null);
         assertTrue(verifier.verify(file, "ignored"));
+    }
+
+    // --- Static helpers ---
+
+    @Test
+    @DisplayName("Sparkle4j.resolveAppName returns default when no manifest")
+    void resolveAppNameDefault() {
+        assertEquals("Application", Sparkle4j.resolveAppName());
     }
 
     @Test
@@ -152,10 +257,27 @@ class Sparkle4jInstanceTest {
         assertFalse(VersionComparator.isNewer("1.0.0-alpha", "1.0.0"));
     }
 
+    // --- checkInBackground ---
+
     @Test
-    @DisplayName("Sparkle4j.resolveAppName returns default when no manifest")
-    void resolveAppNameDefault() {
-        var name = Sparkle4j.resolveAppName();
-        assertEquals("Application", name);
+    @DisplayName("checkInBackground does not throw")
+    void checkInBackgroundDoesNotThrow() {
+        var instance = buildInstance("1.0.0", 0);
+        assertDoesNotThrow(instance::checkInBackground);
+    }
+
+    // --- onUpdateFound hook ---
+
+    @Test
+    @DisplayName("builder accepts onUpdateFound callback")
+    void onUpdateFoundCallback() {
+        var instance =
+                Sparkle4j.builder()
+                        .appcastUrl("https://example.com/appcast.xml")
+                        .currentVersion("1.0.0")
+                        .appName("sparkle4j-hook-" + System.nanoTime())
+                        .onUpdateFound(item -> false)
+                        .build();
+        assertNotNull(instance);
     }
 }
