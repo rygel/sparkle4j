@@ -345,4 +345,73 @@ class ReleaseNotesPanelTest {
         assertTrue(result.contains("<h1>Changelog</h1>"));
         assertTrue(result.contains("<li>Fixed bug</li>"));
     }
+
+    // --- constructor (creates actual Swing component) ---
+
+    @SuppressWarnings("NullAway")
+    @Test
+    @DisplayName("constructor with null URL and null description shows no-notes")
+    void constructorNullUrlNullDescription() {
+        var panel = new ReleaseNotesPanel(null, null);
+        assertNotNull(panel);
+        var text = panel.getText();
+        assertTrue(text.contains("No release notes available"));
+    }
+
+    @SuppressWarnings("NullAway")
+    @Test
+    @DisplayName("constructor with null URL and plain text description")
+    void constructorNullUrlPlainText() {
+        var panel = new ReleaseNotesPanel(null, "Simple update notes");
+        var text = panel.getText();
+        assertTrue(text.contains("Simple update notes"));
+    }
+
+    @SuppressWarnings("NullAway")
+    @Test
+    @DisplayName("constructor with null URL and markdown description")
+    void constructorNullUrlMarkdown() {
+        var panel = new ReleaseNotesPanel(null, "# Release Notes\n- Bug fix");
+        var text = panel.getText();
+        assertTrue(text.contains("Release Notes"));
+    }
+
+    @SuppressWarnings("NullAway")
+    @Test
+    @DisplayName("constructor with null URL and HTML description")
+    void constructorNullUrlHtml() {
+        var panel = new ReleaseNotesPanel(null, "<html><body>HTML notes</body></html>");
+        assertNotNull(panel);
+    }
+
+    @Test
+    @DisplayName("constructor with remote URL starts async thread")
+    void constructorWithUrl() throws InterruptedException {
+        wireMock.stubFor(
+                get(urlEqualTo("/release-notes.html"))
+                        .willReturn(aResponse().withStatus(200).withBody("<h1>Remote Notes</h1>")));
+
+        var url = "http://localhost:" + wireMock.getPort() + "/release-notes.html";
+        var panel = new ReleaseNotesPanel(url, null);
+        assertNotNull(panel);
+        // Give the async thread time to load
+        Thread.sleep(500);
+        var text = panel.getText();
+        assertTrue(text.contains("Remote Notes"));
+    }
+
+    @SuppressWarnings("NullAway")
+    @Test
+    @DisplayName("constructor with remote markdown URL converts to HTML")
+    void constructorWithMarkdownUrl() throws InterruptedException {
+        wireMock.stubFor(
+                get(urlEqualTo("/notes.md"))
+                        .willReturn(aResponse().withStatus(200).withBody("# Changelog")));
+
+        var url = "http://localhost:" + wireMock.getPort() + "/notes.md";
+        var panel = new ReleaseNotesPanel(url, null);
+        Thread.sleep(500);
+        var text = panel.getText();
+        assertTrue(text.contains("Changelog"));
+    }
 }
