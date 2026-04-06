@@ -45,7 +45,7 @@ jobs:
 
       - name: Publish to GitHub Packages
         if: github.event_name == 'release'
-        run: mvn deploy -Prelease -DskipTests -T 4
+        run: mvn deploy -DskipTests -Dgpg.skip -T 4
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
