@@ -128,6 +128,36 @@ class UpdateDownloaderTest {
         }
     }
 
+    @Test
+    @DisplayName("uses fallback filename when URL has no path segment")
+    void fallbackFilename() throws Exception {
+        var content = "data".getBytes(StandardCharsets.UTF_8);
+        wireMock.stubFor(
+                get(urlEqualTo("/")).willReturn(aResponse().withStatus(200).withBody(content)));
+
+        var downloader = new TestDownloader(tempDir);
+        var file = downloader.download(url("/"), content.length, (r, t) -> {});
+
+        assertTrue(file.getFileName().toString().contains("sparkle4j-update"));
+        assertArrayEquals(content, Files.readAllBytes(file));
+    }
+
+    @Test
+    @DisplayName("strips query string from filename")
+    void stripsQueryString() throws Exception {
+        var content = "payload".getBytes(StandardCharsets.UTF_8);
+        wireMock.stubFor(
+                get(urlPathEqualTo("/installer.exe"))
+                        .willReturn(aResponse().withStatus(200).withBody(content)));
+
+        var downloader = new TestDownloader(tempDir);
+        var file =
+                downloader.download(url("/installer.exe?token=abc"), content.length, (r, t) -> {});
+
+        assertTrue(file.getFileName().toString().contains("installer.exe"));
+        assertFalse(file.getFileName().toString().contains("token"));
+    }
+
     /** Thin subclass that redirects temp files into the test temp directory. */
     private static class TestDownloader extends UpdateDownloader {
         private final Path tempDir;

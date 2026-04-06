@@ -32,7 +32,6 @@ final class WindowsApplier {
 
             log.info("Launching installer: " + args);
             new ProcessBuilder(args).start();
-            System.exit(0);
         } catch (IOException e) {
             log.severe("Failed to launch installer: " + e.getMessage());
         }

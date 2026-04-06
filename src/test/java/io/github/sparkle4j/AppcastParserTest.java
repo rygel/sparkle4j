@@ -217,4 +217,86 @@ class AppcastParserTest {
         var items = parser.parse(xml);
         assertEquals("inno", items.get(0).installerType());
     }
+
+    @Test
+    @DisplayName("rejects XML with DOCTYPE declaration (XXE protection)")
+    void rejectsDoctype() {
+        var xml =
+                """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+            <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+              <channel></channel>
+            </rss>
+            """;
+        assertThrows(Exception.class, () -> parser.parse(xml));
+    }
+
+    @Test
+    @DisplayName("skips enclosure with blank URL")
+    void skipsBlankUrl() throws Exception {
+        var xml =
+                """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+              <channel>
+                <item>
+                  <sparkle:version>1.0.0</sparkle:version>
+                  <enclosure url="" sparkle:os="%s" length="100"/>
+                </item>
+              </channel>
+            </rss>
+            """
+                        .formatted(AppcastParser.currentOs());
+        var items = parser.parse(xml);
+        assertTrue(items.isEmpty());
+    }
+
+    @Test
+    @DisplayName("parses ed25519 signature from enclosure")
+    void parsesEdSignature() throws Exception {
+        var xml =
+                """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+              <channel>
+                <item>
+                  <sparkle:version>1.0.0</sparkle:version>
+                  <enclosure url="https://example.com/update.exe"
+                             sparkle:os="%s"
+                             sparkle:edSignature="abc123signature"
+                             length="100"/>
+                </item>
+              </channel>
+            </rss>
+            """
+                        .formatted(AppcastParser.currentOs());
+        var items = parser.parse(xml);
+        assertEquals("abc123signature", items.get(0).edSignature());
+    }
+
+    @Test
+    @DisplayName("parses empty channel without error")
+    void parsesEmptyChannel() throws Exception {
+        var xml =
+                """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+              <channel>
+                <title>My App</title>
+              </channel>
+            </rss>
+            """;
+        var items = parser.parse(xml);
+        assertTrue(items.isEmpty());
+    }
+
+    @Test
+    @DisplayName("currentOs returns a known platform string")
+    void currentOsReturnsKnown() {
+        var os = AppcastParser.currentOs();
+        assertTrue(
+                "windows".equals(os) || "macos".equals(os) || "linux".equals(os),
+                "Expected windows, macos, or linux but got: " + os);
+    }
 }
