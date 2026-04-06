@@ -19,8 +19,8 @@ import java.util.regex.Pattern;
  *
  * <ul>
  *   <li>HTML URLs: rendered as-is via JEditorPane's text/html support.
- *   <li>Markdown URLs (.md or content-sniffed): converted to HTML. Uses flexmark-java if on the
- *       classpath; otherwise falls back to a minimal built-in converter.
+ *   <li>Markdown URLs (.md or content-sniffed): converted to HTML via a built-in CommonMark subset
+ *       converter supporting headings, bold, code, links, lists, and code blocks.
  *   <li>No URL: shows "No release notes available."
  *   <li>Network failure: shows "Could not load release notes." — never blocks the dialog.
  * </ul>
@@ -105,35 +105,7 @@ final class ReleaseNotesPanel extends JEditorPane {
     }
 
     private static String markdownToHtml(String markdown) {
-        try {
-            return flexmarkConvert(markdown);
-        } catch (ReflectiveOperationException e) {
-            return minimalMarkdownToHtml(markdown);
-        }
-    }
-
-    /** Reflective call to flexmark-java so it remains an optional runtime dependency. */
-    private static String flexmarkConvert(String markdown) throws ReflectiveOperationException {
-        var optionsClass = Class.forName("com.vladsch.flexmark.util.data.MutableDataSet");
-        var options = optionsClass.getDeclaredConstructor().newInstance();
-
-        var parserClass = Class.forName("com.vladsch.flexmark.parser.Parser");
-        var parserBuilder = parserClass.getMethod("builder", optionsClass).invoke(null, options);
-        var parser = parserBuilder.getClass().getMethod("build").invoke(parserBuilder);
-        var document = parser.getClass().getMethod("parse", String.class).invoke(parser, markdown);
-
-        var rendererClass = Class.forName("com.vladsch.flexmark.html.HtmlRenderer");
-        var rendererBuilder =
-                rendererClass.getMethod("builder", optionsClass).invoke(null, options);
-        var renderer = rendererBuilder.getClass().getMethod("build").invoke(rendererBuilder);
-        var nodeClass = Class.forName("com.vladsch.flexmark.util.ast.Node");
-        var html =
-                (String)
-                        renderer.getClass()
-                                .getMethod("render", nodeClass)
-                                .invoke(renderer, document);
-
-        return "<html><body style='" + bodyStyle() + "'>" + html + "</body></html>";
+        return minimalMarkdownToHtml(markdown);
     }
 
     /** CommonMark subset: headings, bold, lists, code blocks, links, paragraphs. */

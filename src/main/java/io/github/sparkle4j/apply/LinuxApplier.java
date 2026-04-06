@@ -34,7 +34,6 @@ final class LinuxApplier {
                 if (exitCode != 0) {
                     log.warning("Package manager exited with code " + exitCode);
                 }
-                System.exit(0);
             } catch (IOException | InterruptedException e) {
                 log.severe("Package installation failed: " + e.getMessage());
             }

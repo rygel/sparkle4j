@@ -78,7 +78,6 @@
         <exclude name="AvoidFieldNameMatchingMethodName"/>
         <exclude name="NullAssignment"/>
         <exclude name="DataflowAnomalyAnalysis"/>
-        <exclude name="DoNotTerminateVM"/>
         <exclude name="AssignmentInOperand"/>
         <exclude name="AvoidCatchingGenericException"/>
         <!-- Duplicate literals in tests are fine for readability -->
