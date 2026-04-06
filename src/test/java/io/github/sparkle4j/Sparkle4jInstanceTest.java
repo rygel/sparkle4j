@@ -280,4 +280,144 @@ class Sparkle4jInstanceTest {
                         .build();
         assertNotNull(instance);
     }
+
+    // --- isCheckDue via reflection ---
+
+    private boolean callIsCheckDue(Object instance) {
+        try {
+            Method method = instance.getClass().getDeclaredMethod("isCheckDue");
+            method.setAccessible(true);
+            return (boolean) method.invoke(instance);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    @Test
+    @DisplayName("isCheckDue returns true when no previous check")
+    void isCheckDueTrueWhenNoPreviousCheck() {
+        var appName = "sparkle4j-due-" + System.nanoTime();
+        var config =
+                new Sparkle4jConfig(
+                        "https://example.com/appcast.xml",
+                        "1.0.0",
+                        null,
+                        24,
+                        null,
+                        appName,
+                        null,
+                        null);
+        var instance = Sparkle4j.createInstance(config);
+        assertTrue(callIsCheckDue(instance));
+    }
+
+    @Test
+    @DisplayName("isCheckDue returns false when checked recently")
+    void isCheckDueFalseWhenRecent() {
+        var appName = "sparkle4j-recent-" + System.nanoTime();
+        new UpdatePreferences(appName).setLastCheckTimestamp(Instant.now());
+
+        var config =
+                new Sparkle4jConfig(
+                        "https://example.com/appcast.xml",
+                        "1.0.0",
+                        null,
+                        24,
+                        null,
+                        appName,
+                        null,
+                        null);
+        var instance = Sparkle4j.createInstance(config);
+        assertFalse(callIsCheckDue(instance));
+    }
+
+    @Test
+    @DisplayName("isCheckDue returns true when interval is 0")
+    void isCheckDueTrueWhenIntervalZero() {
+        var appName = "sparkle4j-zero-" + System.nanoTime();
+        new UpdatePreferences(appName).setLastCheckTimestamp(Instant.now());
+
+        var config =
+                new Sparkle4jConfig(
+                        "https://example.com/appcast.xml",
+                        "1.0.0",
+                        null,
+                        0,
+                        null,
+                        appName,
+                        null,
+                        null);
+        var instance = Sparkle4j.createInstance(config);
+        assertTrue(callIsCheckDue(instance));
+    }
+
+    @Test
+    @DisplayName("isCheckDue returns false for HTTP URL")
+    void isCheckDueFalseForHttp() {
+        var appName = "sparkle4j-http-" + System.nanoTime();
+        var config =
+                new Sparkle4jConfig(
+                        "http://example.com/appcast.xml",
+                        "1.0.0",
+                        null,
+                        0,
+                        null,
+                        appName,
+                        null,
+                        null);
+        var instance = Sparkle4j.createInstance(config);
+        assertFalse(callIsCheckDue(instance));
+    }
+
+    @Test
+    @DisplayName("isCheckDue returns true when last check was long ago")
+    void isCheckDueTrueWhenOld() {
+        var appName = "sparkle4j-old-" + System.nanoTime();
+        new UpdatePreferences(appName)
+                .setLastCheckTimestamp(Instant.now().minusSeconds(86_400 * 2));
+
+        var config =
+                new Sparkle4jConfig(
+                        "https://example.com/appcast.xml",
+                        "1.0.0",
+                        null,
+                        24,
+                        null,
+                        appName,
+                        null,
+                        null);
+        var instance = Sparkle4j.createInstance(config);
+        assertTrue(callIsCheckDue(instance));
+    }
+
+    // --- fetchAndParseBestUpdate via reflection ---
+
+    @SuppressWarnings("NullAway")
+    private UpdateItem callFetchAndParse(Object instance) {
+        try {
+            Method method = instance.getClass().getDeclaredMethod("fetchAndParseBestUpdate");
+            method.setAccessible(true);
+            return (UpdateItem) method.invoke(instance);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    @Test
+    @DisplayName("fetchAndParseBestUpdate returns null on unreachable URL")
+    void fetchAndParseNullOnUnreachable() {
+        var appName = "sparkle4j-unreachable-" + System.nanoTime();
+        var config =
+                new Sparkle4jConfig(
+                        "https://localhost:1/appcast.xml",
+                        "1.0.0",
+                        null,
+                        0,
+                        null,
+                        appName,
+                        null,
+                        null);
+        var instance = Sparkle4j.createInstance(config);
+        assertNull(callFetchAndParse(instance));
+    }
 }
