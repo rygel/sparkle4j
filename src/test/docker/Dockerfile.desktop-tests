@@ -1,0 +1,25 @@
+FROM eclipse-temurin:21-jdk
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends xvfb libxrender1 libxtst6 libxi6 libxext6 curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Maven 3.9+
+ENV MAVEN_VERSION=3.9.9
+RUN curl -fsSL https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz \
+    | tar xz -C /opt && \
+    ln -s /opt/apache-maven-${MAVEN_VERSION}/bin/mvn /usr/local/bin/mvn
+
+WORKDIR /build
+
+# Copy project
+COPY pom.xml ./
+COPY src src
+COPY config config
+
+# Download dependencies
+RUN mvn dependency:go-offline -q || true
+
+# Run desktop tests under Xvfb (override exclude to include UpdateDialogTest)
+ENV DISPLAY=:99
+ENTRYPOINT ["sh", "-c", "Xvfb :99 -screen 0 1280x1024x24 &>/dev/null & sleep 1 && mvn test -T 4 -Dtest='io.github.sparkle4j.ui.UpdateDialogTest' -Dsurefire.excludes='' -Dsurefire.failIfNoSpecifiedTests=false"]

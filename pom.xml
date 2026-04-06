@@ -292,6 +292,10 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <forkedProcessTimeoutInSeconds>${surefire.timeout}</forkedProcessTimeoutInSeconds>
+                    <excludes>
+                        <!-- Desktop/Swing tests need Xvfb: run with -Ptest-desktop -->
+                        <exclude>**/ui/UpdateDialogTest.java</exclude>
+                    </excludes>
                     <properties>
                         <configurationParameters>
                             junit.jupiter.execution.timeout.default=120s
@@ -471,6 +475,39 @@
     </build>
 
     <profiles>
+        <!-- Desktop/Swing tests: run inside Docker/Podman container with Xvfb -->
+        <profile>
+            <id>test-desktop</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>desktop-tests-in-container</id>
+                                <phase>integration-test</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <executable>bash</executable>
+                                    <arguments>
+                                        <argument>${project.basedir}/src/test/docker/run-desktop-tests.sh</argument>
+                                    </arguments>
+                                    <environmentVariables>
+                                        <CONTAINER_RUNTIME>${container.runtime}</CONTAINER_RUNTIME>
+                                    </environmentVariables>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+            <properties>
+                <container.runtime>docker</container.runtime>
+            </properties>
+        </profile>
+
         <!-- Checkstyle 13.x requires Java 21+; auto-activates when running on JDK 21+ -->
         <profile>
             <id>checkstyle</id>
