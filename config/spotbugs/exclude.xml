@@ -38,12 +38,6 @@
         <Class name="io.github.sparkle4j.tools.AppcastGenerator"/>
     </Match>
 
-    <!-- DM_EXIT: System.exit() is intentional in update appliers (app restarts after install) -->
-    <Match>
-        <Bug pattern="DM_EXIT"/>
-        <Package name="io.github.sparkle4j.apply"/>
-    </Match>
-
     <!-- POTENTIAL_XML_INJECTION: content is htmlEscaped before insertion, rendering to local JEditorPane -->
     <Match>
         <Bug pattern="POTENTIAL_XML_INJECTION"/>

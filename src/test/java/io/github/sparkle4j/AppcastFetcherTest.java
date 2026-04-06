@@ -119,4 +119,27 @@ class AppcastFetcherTest {
 
         assertEquals("<rss/>", fetcher.fetch(url("/old-appcast.xml")));
     }
+
+    @Test
+    @DisplayName("304 without prior cache returns null")
+    void returns304WithoutCacheReturnsNull() {
+        // Server returns 304 on first request (no prior cache entry)
+        wireMock.stubFor(get(urlEqualTo("/appcast.xml")).willReturn(aResponse().withStatus(304)));
+
+        // New fetcher with empty cache
+        var freshFetcher = new AppcastFetcher();
+        assertNull(freshFetcher.fetch(url("/appcast.xml")));
+    }
+
+    @Test
+    @DisplayName("caches response without ETag or Last-Modified")
+    void cachesWithoutHeaders() {
+        wireMock.stubFor(
+                get(urlEqualTo("/appcast.xml"))
+                        .willReturn(aResponse().withStatus(200).withBody("<rss>data</rss>")));
+
+        assertEquals("<rss>data</rss>", fetcher.fetch(url("/appcast.xml")));
+        // Second fetch should still work (cache exists but no conditional headers)
+        assertEquals("<rss>data</rss>", fetcher.fetch(url("/appcast.xml")));
+    }
 }

@@ -34,3 +34,33 @@ jobs:
 
       - name: Build and test
         run: mvn verify -T 4
+
+  desktop-tests:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Install Xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run desktop and applier tests under Xvfb
+        run: |
+          Xvfb :99 -screen 0 1280x1024x24 &>/dev/null &
+          sleep 1
+          mvn test -T 4 \
+            -Dtest='io.github.sparkle4j.ui.UpdateDialogTest,io.github.sparkle4j.apply.LinuxApplierTest,io.github.sparkle4j.apply.MacosApplierTest,io.github.sparkle4j.apply.WindowsApplierTest' \
+            -Dsurefire.excludes='' \
+            -Dsurefire.failIfNoSpecifiedTests=false
+        env:
+          DISPLAY: ':99'

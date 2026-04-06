@@ -57,6 +57,8 @@
         <exclude name="SignatureDeclareThrowsException"/>
         <!-- JUnit @RegisterExtension fields must be static and mutable -->
         <exclude name="MutableStaticState"/>
+        <!-- Test classes with many test methods trigger this incorrectly -->
+        <exclude name="GodClass"/>
     </rule>
     <rule ref="category/java/design.xml/CyclomaticComplexity">
         <properties>
@@ -76,13 +78,14 @@
         <exclude name="AvoidFieldNameMatchingMethodName"/>
         <exclude name="NullAssignment"/>
         <exclude name="DataflowAnomalyAnalysis"/>
-        <exclude name="DoNotTerminateVM"/>
         <exclude name="AssignmentInOperand"/>
         <exclude name="AvoidCatchingGenericException"/>
         <!-- Duplicate literals in tests are fine for readability -->
         <exclude name="AvoidDuplicateLiterals"/>
         <!-- Test helper inner classes don't need test methods -->
         <exclude name="TestClassWithoutTestCases"/>
+        <!-- Reflection setAccessible is needed to test package-private methods -->
+        <exclude name="AvoidAccessibilityAlteration"/>
     </rule>
 
     <!-- Multithreading -->

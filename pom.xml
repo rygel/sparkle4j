@@ -4,7 +4,7 @@
 
     <groupId>io.github.sparkle4j</groupId>
     <artifactId>sparkle4j</artifactId>
-    <version>0.5.3</version>
+    <version>0.5.4</version>
     <packaging>jar</packaging>
 
     <name>sparkle4j</name>
@@ -47,8 +47,8 @@
         <!-- Dependencies -->
         <jspecify.version>1.0.0</jspecify.version>
         <spotbugs-annotations.version>4.9.8</spotbugs-annotations.version>
-        <junit.version>5.11.4</junit.version>
-        <wiremock.version>3.10.0</wiremock.version>
+        <junit.version>6.0.3</junit.version>
+        <wiremock.version>3.13.2</wiremock.version>
         <archunit.version>1.4.1</archunit.version>
 
         <!-- Core Maven plugins -->
@@ -67,8 +67,8 @@
         <central.publishing.plugin.version>0.10.0</central.publishing.plugin.version>
 
         <!-- Quality plugins -->
-        <error-prone.version>2.36.0</error-prone.version>
-        <nullaway.version>0.12.3</nullaway.version>
+        <error-prone.version>2.48.0</error-prone.version>
+        <nullaway.version>0.13.1</nullaway.version>
         <maven.checkstyle.plugin.version>3.6.0</maven.checkstyle.plugin.version>
         <checkstyle.version>13.4.0</checkstyle.version>
         <spotless.plugin.version>3.4.0</spotless.plugin.version>
@@ -250,40 +250,11 @@
             </plugins>
         </pluginManagement>
         <plugins>
-            <!-- Compiler with Error Prone + NullAway -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <release>${java.version}</release>
-                    <fork>true</fork>
-                    <compilerArgs>
-                        <arg>-XDcompilePolicy=simple</arg>
-                        <arg>--should-stop=ifError=FLOW</arg>
-                        <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.sparkle4j</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
-                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
-                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
-                    </compilerArgs>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>com.google.errorprone</groupId>
-                            <artifactId>error_prone_core</artifactId>
-                            <version>${error-prone.version}</version>
-                        </path>
-                        <path>
-                            <groupId>com.uber.nullaway</groupId>
-                            <artifactId>nullaway</artifactId>
-                            <version>${nullaway.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
 
@@ -292,6 +263,13 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <forkedProcessTimeoutInSeconds>${surefire.timeout}</forkedProcessTimeoutInSeconds>
+                    <excludes>
+                        <!-- Desktop/Swing and applier tests: run with -Ptest-desktop in a container -->
+                        <exclude>**/ui/UpdateDialogTest.java</exclude>
+                        <exclude>**/apply/LinuxApplierTest.java</exclude>
+                        <exclude>**/apply/MacosApplierTest.java</exclude>
+                        <exclude>**/apply/WindowsApplierTest.java</exclude>
+                    </excludes>
                     <properties>
                         <configurationParameters>
                             junit.jupiter.execution.timeout.default=120s
@@ -401,7 +379,7 @@
                         <plugin>
                             <groupId>com.h3xstream.findsecbugs</groupId>
                             <artifactId>findsecbugs-plugin</artifactId>
-                            <version>1.13.0</version>
+                            <version>1.14.0</version>
                         </plugin>
                     </plugins>
                 </configuration>
@@ -471,14 +449,84 @@
     </build>
 
     <profiles>
-        <!-- Checkstyle 13.x requires Java 21+; auto-activates when running on JDK 21+ -->
+        <!-- Desktop/Swing tests: run inside Docker/Podman container with Xvfb -->
         <profile>
-            <id>checkstyle</id>
+            <id>test-desktop</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>desktop-tests-in-container</id>
+                                <phase>integration-test</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <executable>bash</executable>
+                                    <arguments>
+                                        <argument>${project.basedir}/src/test/docker/run-desktop-tests.sh</argument>
+                                    </arguments>
+                                    <environmentVariables>
+                                        <CONTAINER_RUNTIME>${container.runtime}</CONTAINER_RUNTIME>
+                                    </environmentVariables>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+            <properties>
+                <container.runtime>docker</container.runtime>
+            </properties>
+        </profile>
+
+        <!-- Checkstyle 13.x and Error Prone 2.48+ require Java 21+; auto-activates on JDK 21+ -->
+        <profile>
+            <id>jdk21-quality</id>
             <activation>
                 <jdk>[21,)</jdk>
             </activation>
             <build>
                 <plugins>
+                    <!-- Error Prone + NullAway -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <fork>true</fork>
+                            <compilerArgs>
+                                <arg>-XDcompilePolicy=simple</arg>
+                                <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
+                                <arg>--should-stop=ifError=FLOW</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.sparkle4j</arg>
+                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
+                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
+                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
+                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
+                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
+                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
+                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
+                                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
+                                <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+                                <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
+                            </compilerArgs>
+                            <annotationProcessorPaths>
+                                <path>
+                                    <groupId>com.google.errorprone</groupId>
+                                    <artifactId>error_prone_core</artifactId>
+                                    <version>${error-prone.version}</version>
+                                </path>
+                                <path>
+                                    <groupId>com.uber.nullaway</groupId>
+                                    <artifactId>nullaway</artifactId>
+                                    <version>${nullaway.version}</version>
+                                </path>
+                            </annotationProcessorPaths>
+                        </configuration>
+                    </plugin>
+                    <!-- Checkstyle -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-checkstyle-plugin</artifactId>

@@ -33,9 +33,7 @@ final class MacosApplier {
                             currentAppPath.toString(),
                             tempFile.toString(),
                             String.valueOf(ProcessHandle.current().pid()))
-                    .start(); // fire and forget
-
-            System.exit(0);
+                    .start(); // fire and forget — application should exit after this returns
         } catch (IOException e) {
             log.severe("Failed to launch helper script: " + e.getMessage());
             openBrowser(item.url());
