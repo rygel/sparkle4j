@@ -8,6 +8,7 @@ import javax.swing.UIManager;
 
 import java.awt.Color;
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
@@ -87,10 +88,15 @@ final class ReleaseNotesPanel extends JEditorPane {
             return wrapHtml(LOAD_FAILED_MSG);
         }
         try {
-            var content =
-                    new String(
-                            URI.create(releaseNotesUrl).toURL().openStream().readAllBytes(),
-                            StandardCharsets.UTF_8);
+            var conn = (HttpURLConnection) URI.create(releaseNotesUrl).toURL().openConnection();
+            conn.setConnectTimeout(10_000);
+            conn.setReadTimeout(15_000);
+            conn.setInstanceFollowRedirects(true);
+            conn.setRequestProperty("Accept", "text/html,text/plain,text/markdown,*/*");
+            String content;
+            try (var stream = conn.getInputStream()) {
+                content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            }
             if (releaseNotesUrl.toLowerCase(Locale.ROOT).endsWith(".md")
                     || looksLikeMarkdown(content)) {
                 return markdownToHtml(content);
