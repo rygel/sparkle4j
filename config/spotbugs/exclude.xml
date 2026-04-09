@@ -22,38 +22,38 @@
     <!-- EI_EXPOSE_REP: Swing Component references are intentionally shared (not defensive-copied) -->
     <Match>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
-        <Class name="~io\.github\.sparkle4j\.(Sparkle4jBuilder|Sparkle4jConfig)"/>
+        <Class name="~io\.github\.rygel\.sparkle4j\.(Sparkle4jBuilder|Sparkle4jConfig)"/>
     </Match>
 
     <!-- RV_RETURN_VALUE_IGNORED_BAD_PRACTICE: fire-and-forget background check -->
     <Match>
         <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE"/>
-        <Class name="io.github.sparkle4j.Sparkle4j$Sparkle4jInstanceImpl"/>
+        <Class name="io.github.rygel.sparkle4j.Sparkle4j$Sparkle4jInstanceImpl"/>
         <Method name="checkInBackground"/>
     </Match>
 
     <!-- AppcastGenerator is a CLI tool — lower security bar than the library itself -->
     <Match>
         <Bug pattern="MODIFICATION_AFTER_VALIDATION,THROWS_METHOD_THROWS_CLAUSE_BASIC_EXCEPTION,VA_FORMAT_STRING_USES_NEWLINE"/>
-        <Class name="io.github.sparkle4j.tools.AppcastGenerator"/>
+        <Class name="io.github.rygel.sparkle4j.tools.AppcastGenerator"/>
     </Match>
 
     <!-- POTENTIAL_XML_INJECTION: content is htmlEscaped before insertion, rendering to local JEditorPane -->
     <Match>
         <Bug pattern="POTENTIAL_XML_INJECTION"/>
-        <Class name="io.github.sparkle4j.ui.ReleaseNotesPanel"/>
+        <Class name="io.github.rygel.sparkle4j.ui.ReleaseNotesPanel"/>
     </Match>
 
     <!-- URLCONNECTION_SSRF_FD: loading release notes from a configured URL is the intended behavior -->
     <Match>
         <Bug pattern="URLCONNECTION_SSRF_FD"/>
-        <Class name="io.github.sparkle4j.ui.ReleaseNotesPanel"/>
+        <Class name="io.github.rygel.sparkle4j.ui.ReleaseNotesPanel"/>
     </Match>
 
     <!-- RV_RETURN_VALUE_IGNORED_BAD_PRACTICE: best-effort temp file cleanup -->
     <Match>
         <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE"/>
-        <Class name="io.github.sparkle4j.ui.UpdateDialog"/>
+        <Class name="io.github.rygel.sparkle4j.ui.UpdateDialog"/>
         <Method name="executeDownload"/>
     </Match>
 </FindBugsFilter>

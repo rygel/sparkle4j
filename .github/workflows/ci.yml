@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -35,8 +35,21 @@ jobs:
       - name: Build and test
         run: mvn verify -T 4
 
+  build-complete:
+    name: build
+    runs-on: ubuntu-latest
+    needs: build
+    if: always()
+    steps:
+      - name: Check matrix result
+        run: |
+          if [[ "${{ needs.build.result }}" != "success" ]]; then
+            echo "One or more build matrix jobs failed"
+            exit 1
+          fi
+
   desktop-tests:
-    needs: build-and-test
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -59,7 +72,7 @@ jobs:
           Xvfb :99 -screen 0 1280x1024x24 &>/dev/null &
           sleep 1
           mvn test -T 4 \
-            -Dtest='io.github.sparkle4j.ui.UpdateDialogTest,io.github.sparkle4j.apply.LinuxApplierTest,io.github.sparkle4j.apply.MacosApplierTest,io.github.sparkle4j.apply.WindowsApplierTest' \
+            -Dtest='io.github.rygel.sparkle4j.ui.UpdateDialogTest,io.github.rygel.sparkle4j.apply.LinuxApplierTest,io.github.rygel.sparkle4j.apply.MacosApplierTest,io.github.rygel.sparkle4j.apply.WindowsApplierTest' \
             -Dsurefire.excludes='' \
             -Dsurefire.failIfNoSpecifiedTests=false
         env:

@@ -2,14 +2,14 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.github.sparkle4j</groupId>
+    <groupId>io.github.rygel</groupId>
     <artifactId>sparkle4j</artifactId>
-    <version>0.5.4</version>
+    <version>0.5.5</version>
     <packaging>jar</packaging>
 
     <name>sparkle4j</name>
     <description>In-app update checking and silent update application for Java desktop apps. Compatible with the Sparkle appcast format.</description>
-    <url>https://github.com/sparkle4j/sparkle4j</url>
+    <url>https://github.com/rygel/sparkle4j</url>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -19,24 +19,17 @@
 
     <developers>
         <developer>
-            <id>sparkle4j</id>
-            <name>sparkle4j contributors</name>
-            <url>https://github.com/sparkle4j/sparkle4j</url>
+            <id>rygel</id>
+            <name>Alexander Brandt</name>
+            <url>https://github.com/rygel</url>
         </developer>
     </developers>
 
     <scm>
-        <connection>scm:git:https://github.com/sparkle4j/sparkle4j.git</connection>
-        <developerConnection>scm:git:git@github.com:sparkle4j/sparkle4j.git</developerConnection>
-        <url>https://github.com/sparkle4j/sparkle4j</url>
+        <connection>scm:git:https://github.com/rygel/sparkle4j.git</connection>
+        <developerConnection>scm:git:git@github.com:rygel/sparkle4j.git</developerConnection>
+        <url>https://github.com/rygel/sparkle4j</url>
     </scm>
-    <distributionManagement>
-        <repository>
-            <id>github-rygel</id>
-            <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/rygel/sparkle4j</url>
-        </repository>
-    </distributionManagement>
 
     <properties>
         <!-- Java -->
@@ -331,7 +324,7 @@
                             <style>AOSP</style>
                         </googleJavaFormat>
                         <importOrder>
-                            <order>io.github.sparkle4j,,javax,java</order>
+                            <order>io.github.rygel.sparkle4j,,javax,java</order>
                         </importOrder>
                         <removeUnusedImports/>
                     </java>
@@ -500,7 +493,7 @@
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
-                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.sparkle4j</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.rygel.sparkle4j</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>

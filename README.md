@@ -56,7 +56,7 @@ repositories {
 
 ```xml
 <dependency>
-    <groupId>io.github.sparkle4j</groupId>
+    <groupId>io.github.rygel</groupId>
     <artifactId>sparkle4j</artifactId>
     <version>0.5.1</version>
 </dependency>
@@ -65,13 +65,13 @@ repositories {
 **Gradle:**
 
 ```groovy
-implementation 'io.github.sparkle4j:sparkle4j:0.5.1'
+implementation 'io.github.rygel:sparkle4j:0.5.1'
 ```
 
 ## Quick Start
 
 ```java
-import io.github.sparkle4j.Sparkle4j;
+import io.github.rygel.sparkle4j.Sparkle4j;
 import javax.swing.SwingUtilities;
 
 // In your app's startup, after the main window is visible:
@@ -118,8 +118,8 @@ progress bar, and install it — all without leaving your app.
 All options with their defaults:
 
 ```java
-import io.github.sparkle4j.Sparkle4j;
-import io.github.sparkle4j.Sparkle4jInstance;
+import io.github.rygel.sparkle4j.Sparkle4j;
+import io.github.rygel.sparkle4j.Sparkle4jInstance;
 
 Sparkle4jInstance updater = Sparkle4j.builder()
 
@@ -316,7 +316,7 @@ The feed is standard RSS 2.0 with Sparkle namespace extensions. One `<enclosure>
 sparkle4j includes a CLI tool to generate or update the appcast XML on each release:
 
 ```bash
-java -cp sparkle4j.jar io.github.sparkle4j.tools.AppcastGenerator <version> <appcast-file>
+java -cp sparkle4j.jar io.github.rygel.sparkle4j.tools.AppcastGenerator <version> <appcast-file>
 ```
 
 ### Environment variables
@@ -342,7 +342,7 @@ export INSTALLER_LINUX="target/myapp-1.1.0.deb"
 export RELEASE_NOTES_URL="https://example.com/changelog.md"
 export APP_NAME="My App"
 
-java -cp sparkle4j.jar io.github.sparkle4j.tools.AppcastGenerator 1.1.0 appcast.xml
+java -cp sparkle4j.jar io.github.rygel.sparkle4j.tools.AppcastGenerator 1.1.0 appcast.xml
 ```
 
 The tool signs each installer with Ed25519, generates SHA-256 hashes, creates a new `<item>` block,
