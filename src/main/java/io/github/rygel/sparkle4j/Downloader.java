@@ -10,7 +10,7 @@ import java.util.function.BiConsumer;
  * <p>The default implementation is {@link UpdateDownloader}. Implement this interface to substitute
  * a custom download strategy (custom HTTP headers, proxy support, authentication, etc.).
  *
- * @see Sparkle4jBuilder#downloader(Downloader)
+ * @see Sparkle4jBuilder#downloader(java.util.function.Function)
  */
 @FunctionalInterface
 public interface Downloader {

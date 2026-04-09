@@ -16,10 +16,21 @@ public final class UpdateApplier {
 
     private final Sparkle4jConfig config;
 
+    /**
+     * Creates an applier for the given configuration.
+     *
+     * @param config the sparkle4j configuration
+     */
     public UpdateApplier(Sparkle4jConfig config) {
         this.config = config;
     }
 
+    /**
+     * Applies the downloaded update by delegating to the appropriate platform applier.
+     *
+     * @param item the update item describing the release
+     * @param tempFile path to the downloaded installer file
+     */
     public void apply(UpdateItem item, Path tempFile) {
         switch (Platform.currentOs()) {
             case "windows" -> new WindowsApplier().apply(item, tempFile);

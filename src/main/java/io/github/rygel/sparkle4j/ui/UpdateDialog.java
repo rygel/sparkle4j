@@ -57,6 +57,15 @@ public final class UpdateDialog {
     private volatile Thread downloadThread;
     private volatile boolean cancelled;
 
+    /**
+     * Creates the update dialog.
+     *
+     * @param config the sparkle4j configuration
+     * @param item the available update to present
+     * @param onSkip callback invoked when the user clicks Skip This Version
+     * @param onInstall callback invoked to apply the downloaded update
+     * @param downloader performs the actual file download
+     */
     public UpdateDialog(
             Sparkle4jConfig config,
             UpdateItem item,
@@ -70,6 +79,7 @@ public final class UpdateDialog {
         this.downloader = downloader;
     }
 
+    /** Builds and displays the dialog on the EDT. */
     public void show() {
         var parentWindow =
                 config.parentComponent() != null

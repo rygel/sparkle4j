@@ -16,7 +16,11 @@ public final class Sparkle4j {
 
     private Sparkle4j() {}
 
-    /** Creates a new builder for configuring a sparkle4j instance. */
+    /**
+     * Creates a new builder for configuring a sparkle4j instance.
+     *
+     * @return a new {@link Sparkle4jBuilder}
+     */
     public static Sparkle4jBuilder builder() {
         return new Sparkle4jBuilder();
     }

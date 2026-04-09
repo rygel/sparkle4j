@@ -20,14 +20,23 @@ public interface Sparkle4jInstance extends Closeable {
      * Blocking check. Returns the newest available update, or empty if up to date, throttled, or
      * skipped.
      *
+     * @return the newest available update, or empty if up to date, throttled, or skipped
      * @throws IOException if the appcast cannot be fetched due to a network or HTTP error
      */
     Optional<UpdateItem> checkNow() throws IOException;
 
-    /** Download and apply the given item immediately (skips the check dialog). */
+    /**
+     * Download and apply the given item immediately (skips the check dialog).
+     *
+     * @param item the update to download and install
+     */
     void applyUpdate(UpdateItem item);
 
-    /** Suppress future checks for this version (persisted across launches). */
+    /**
+     * Suppress future checks for this version (persisted across launches).
+     *
+     * @param version the version string to skip
+     */
     void skipVersion(String version);
 
     /** Shuts down the background checker thread. Safe to call multiple times. */
