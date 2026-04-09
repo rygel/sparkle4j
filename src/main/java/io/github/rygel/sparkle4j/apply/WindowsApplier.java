@@ -27,7 +27,7 @@ final class WindowsApplier {
             // installerPath is always tempDir + "sparkle4j-update.exe" (hardcoded name, not
             // user-controlled). All args are either this fixed path or compile-time string
             // literals. No shell is involved — ProcessBuilder takes a list, not a command
-            // string. Not a command injection risk. // NOSEMGREP
+            // string. Not a command injection risk.
             var args =
                     switch (item.installerType().toLowerCase(Locale.ROOT)) {
                         case "nsis" -> List.of(installerPath.toString(), "/S");
@@ -35,7 +35,7 @@ final class WindowsApplier {
                     };
 
             log.info("Launching installer: " + args);
-            new ProcessBuilder(args).start(); // NOSEMGREP
+            new ProcessBuilder(args).start(); // nosemgrep
         } catch (IOException e) {
             log.severe("Failed to launch installer: " + e.getMessage());
         }

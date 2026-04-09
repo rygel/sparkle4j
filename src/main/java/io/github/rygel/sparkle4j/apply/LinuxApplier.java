@@ -33,9 +33,9 @@ final class LinuxApplier {
                 // command is always one of: ["pkexec","dpkg","-i",<path>] or
                 // ["pkexec","rpm","-U",<path>]. The path is a locally generated temp file —
                 // not derived from appcast XML. No shell is involved (ProcessBuilder list form).
-                // Not a command injection risk. // NOSEMGREP
+                // Not a command injection risk.
                 int exitCode =
-                        new ProcessBuilder(command).inheritIO().start().waitFor(); // NOSEMGREP
+                        new ProcessBuilder(command).inheritIO().start().waitFor(); // nosemgrep
                 if (exitCode != 0) {
                     log.warning("Package manager exited with code " + exitCode);
                 }

@@ -31,7 +31,8 @@ final class MacosApplier {
             // helperScript is resolved from the current .app bundle path (process introspection
             // or explicit config), not from appcast XML. tempFile is a locally generated path
             // inside the system temp directory. No shell is used — ProcessBuilder takes a list.
-            // Not a command injection risk. // NOSEMGREP
+            // Not a command injection risk.
+            // nosemgrep
             new ProcessBuilder(
                             helperScript.toString(),
                             currentAppPath.toString(),
