@@ -45,6 +45,12 @@ public final class AppcastGenerator {
 
     private record Installer(Path path, String os, String ext) {}
 
+    /**
+     * CLI entry point. Expects two arguments: version and appcast file path.
+     *
+     * @param args {@code <version> <appcast-file>}
+     * @throws Exception if signing, file I/O, or XML generation fails
+     */
     public static void main(String[] args) throws Exception {
         if (args.length < 2) {
             log.severe("Usage: AppcastGenerator <version> <appcast-file>");

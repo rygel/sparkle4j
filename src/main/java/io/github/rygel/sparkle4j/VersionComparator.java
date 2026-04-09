@@ -16,11 +16,18 @@ public final class VersionComparator implements Comparator<String>, java.io.Seri
 
     private static final long serialVersionUID = 1L;
 
+    /** Shared singleton instance. */
     public static final VersionComparator INSTANCE = new VersionComparator();
 
     private VersionComparator() {}
 
-    /** Returns true if {@code candidate} is strictly newer than {@code current}. */
+    /**
+     * Returns true if {@code candidate} is strictly newer than {@code current}.
+     *
+     * @param candidate the version to test
+     * @param current the currently installed version
+     * @return {@code true} if candidate is newer
+     */
     public static boolean isNewer(String candidate, String current) {
         return INSTANCE.compare(candidate, current) > 0;
     }

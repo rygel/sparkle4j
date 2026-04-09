@@ -39,6 +39,7 @@ public final class Sparkle4jBuilder {
      * Sets the URL of the appcast XML feed. <strong>Must be HTTPS.</strong>
      *
      * @param url absolute HTTPS URL, e.g. {@code https://example.com/appcast.xml}
+     * @return this builder
      */
     public Sparkle4jBuilder appcastUrl(String url) {
         this.appcastUrl = url;
@@ -50,6 +51,7 @@ public final class Sparkle4jBuilder {
      * version exists. Must be a SemVer 2.0 string (e.g. {@code "1.2.3"}).
      *
      * @param version the current app version
+     * @return this builder
      */
     public Sparkle4jBuilder currentVersion(String version) {
         this.currentVersion = version;
@@ -62,6 +64,7 @@ public final class Sparkle4jBuilder {
      * keys (Java format). <strong>Strongly recommended for production use.</strong>
      *
      * @param key Base64-encoded Ed25519 public key
+     * @return this builder
      */
     public Sparkle4jBuilder publicKey(String key) {
         this.publicKey = key;
@@ -75,6 +78,8 @@ public final class Sparkle4jBuilder {
      *
      * <p>If neither {@link #publicKey(String)} nor this method is called, {@link #build()} will
      * throw {@link IllegalArgumentException}.
+     *
+     * @return this builder
      */
     public Sparkle4jBuilder allowUnsignedUpdates() {
         this.allowUnsignedUpdates = true;
@@ -86,6 +91,7 @@ public final class Sparkle4jBuilder {
      * check on every launch. Default: {@code 24}.
      *
      * @param hours minimum hours between checks; {@code 0} disables throttling
+     * @return this builder
      */
     public Sparkle4jBuilder checkIntervalHours(int hours) {
         this.checkIntervalHours = hours;
@@ -97,6 +103,7 @@ public final class Sparkle4jBuilder {
      * this component's window. If not set, the dialog is centered on screen.
      *
      * @param component a Swing component from the host application's window hierarchy
+     * @return this builder
      */
     public Sparkle4jBuilder parentComponent(Component component) {
         this.parentComponent = component;
@@ -108,6 +115,7 @@ public final class Sparkle4jBuilder {
      * JAR's {@code Implementation-Title} manifest attribute, falling back to {@code "Application"}.
      *
      * @param name human-readable application name
+     * @return this builder
      */
     public Sparkle4jBuilder appName(String name) {
         this.appName = name;
@@ -121,6 +129,7 @@ public final class Sparkle4jBuilder {
      *
      * @param handler predicate that receives the available {@link UpdateItem}; return {@code false}
      *     to suppress the default dialog
+     * @return this builder
      */
     public Sparkle4jBuilder onUpdateFound(Predicate<UpdateItem> handler) {
         this.onUpdateFound = handler;
@@ -133,6 +142,7 @@ public final class Sparkle4jBuilder {
      * executable.
      *
      * @param path absolute path to the current {@code .app} bundle
+     * @return this builder
      */
     public Sparkle4jBuilder macosAppPath(Path path) {
         this.macosAppPath = path;
@@ -146,6 +156,7 @@ public final class Sparkle4jBuilder {
      * UpdateDownloader} is used.
      *
      * @param factory a function that creates a {@link Downloader} for a given update item
+     * @return this builder
      */
     public Sparkle4jBuilder downloader(Function<UpdateItem, Downloader> factory) {
         this.downloaderFactory = factory;
@@ -155,6 +166,7 @@ public final class Sparkle4jBuilder {
     /**
      * Builds and returns a configured {@link Sparkle4jInstance}.
      *
+     * @return a configured {@link Sparkle4jInstance}
      * @throws IllegalArgumentException if appcastUrl or currentVersion is blank, or if neither
      *     {@link #publicKey(String)} nor {@link #allowUnsignedUpdates()} has been called
      */

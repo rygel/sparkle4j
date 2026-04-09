@@ -8,7 +8,9 @@ public final class Platform {
     private Platform() {}
 
     /**
-     * Returns a normalized OS identifier: {@code "windows"}, {@code "macos"}, or {@code "linux"}.
+     * Returns a normalized OS identifier.
+     *
+     * @return {@code "windows"}, {@code "macos"}, or {@code "linux"}
      */
     public static String currentOs() {
         var name = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
