@@ -35,6 +35,19 @@ jobs:
       - name: Build and test
         run: mvn verify -T 4
 
+  build-complete:
+    name: build
+    runs-on: ubuntu-latest
+    needs: build
+    if: always()
+    steps:
+      - name: Check matrix result
+        run: |
+          if [[ "${{ needs.build.result }}" != "success" ]]; then
+            echo "One or more build matrix jobs failed"
+            exit 1
+          fi
+
   desktop-tests:
     needs: build
     runs-on: ubuntu-latest
