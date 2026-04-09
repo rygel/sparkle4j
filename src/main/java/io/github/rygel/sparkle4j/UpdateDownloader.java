@@ -88,6 +88,21 @@ class UpdateDownloader {
                 };
 
         streamToFile(response.body(), tempFile, resumeAt, totalBytes, onProgress);
+
+        if (totalBytes > 0) {
+            var actualBytes = Files.size(tempFile);
+            if (actualBytes != totalBytes) {
+                Files.deleteIfExists(tempFile);
+                throw new IOException(
+                        "Downloaded file size mismatch: expected "
+                                + totalBytes
+                                + " bytes but got "
+                                + actualBytes
+                                + " for "
+                                + url);
+            }
+        }
+
         return tempFile;
     }
 

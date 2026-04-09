@@ -143,6 +143,38 @@ class UpdateDownloaderTest {
     }
 
     @Test
+    @DisplayName("throws IOException when downloaded size does not match expected")
+    void throwsOnFileSizeMismatch() {
+        var content = "short".getBytes(StandardCharsets.UTF_8);
+        wireMock.stubFor(
+                get(urlEqualTo("/update.exe"))
+                        .willReturn(aResponse().withStatus(200).withBody(content)));
+
+        var downloader = new UpdateDownloader(tempDir);
+        var ex =
+                assertThrows(
+                        IOException.class,
+                        () -> downloader.download(url("/update.exe"), 9999L, (r, t) -> {}));
+        assertTrue(String.valueOf(ex.getMessage()).contains("size mismatch"));
+        // Temp file must be deleted after mismatch
+        assertFalse(Files.exists(tempDir.resolve("sparkle4j-update.exe")));
+    }
+
+    @Test
+    @DisplayName("skips size check when totalBytes is 0")
+    void skipsSizeCheckWhenZero() throws Exception {
+        var content = "any content".getBytes(StandardCharsets.UTF_8);
+        wireMock.stubFor(
+                get(urlEqualTo("/update.exe"))
+                        .willReturn(aResponse().withStatus(200).withBody(content)));
+
+        var downloader = new UpdateDownloader(tempDir);
+        // totalBytes=0 → no size check, download succeeds regardless
+        var file = downloader.download(url("/update.exe"), 0L, (r, t) -> {});
+        assertTrue(Files.exists(file));
+    }
+
+    @Test
     @DisplayName("strips query string from filename")
     void stripsQueryString() throws Exception {
         var content = "payload".getBytes(StandardCharsets.UTF_8);
