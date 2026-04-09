@@ -11,6 +11,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.function.BiConsumer;
 import java.util.logging.Logger;
@@ -90,6 +91,7 @@ class UpdateDownloader {
                 };
 
         streamToFile(response.body(), tempFile, resumeAt, totalBytes, onProgress);
+        restrictToOwner(tempFile);
 
         if (totalBytes > 0) {
             var actualBytes = Files.size(tempFile);
@@ -106,6 +108,16 @@ class UpdateDownloader {
         }
 
         return tempFile;
+    }
+
+    private void restrictToOwner(Path file) {
+        try {
+            Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
+        } catch (UnsupportedOperationException ignored) {
+            // Non-POSIX filesystem (Windows) — skip silently
+        } catch (IOException e) {
+            log.fine("Could not set POSIX permissions on temp file: " + e.getMessage());
+        }
     }
 
     private void streamToFile(
