@@ -3,6 +3,7 @@ package io.github.rygel.sparkle4j;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.ProxySelector;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -30,6 +31,7 @@ class UpdateDownloader {
             HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(10))
                     .followRedirects(HttpClient.Redirect.NORMAL)
+                    .proxy(ProxySelector.getDefault())
                     .build();
 
     private final Path tempDir;
