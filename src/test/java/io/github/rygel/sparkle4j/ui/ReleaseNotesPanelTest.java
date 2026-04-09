@@ -433,4 +433,81 @@ class ReleaseNotesPanelTest {
         assertNotNull(panel);
         waitForContent(panel, "Changelog");
     }
+
+    // --- new Markdown elements ---
+
+    @Test
+    @DisplayName("inlineFormat converts italic with asterisks")
+    void inlineFormatItalicStar() {
+        var result = invoke("inlineFormat", "this is *italic* text");
+        assertTrue(result.contains("<i>italic</i>"));
+    }
+
+    @Test
+    @DisplayName("inlineFormat converts italic with underscores")
+    void inlineFormatItalicUnderscore() {
+        var result = invoke("inlineFormat", "this is _italic_ text");
+        assertTrue(result.contains("<i>italic</i>"));
+    }
+
+    @Test
+    @DisplayName("inlineFormat converts strikethrough")
+    void inlineFormatStrikethrough() {
+        var result = invoke("inlineFormat", "this is ~~removed~~ text");
+        assertTrue(result.contains("<s>removed</s>"));
+    }
+
+    @Test
+    @DisplayName("inlineFormat does not convert ** bold to italic")
+    void inlineFormatBoldNotItalic() {
+        var result = invoke("inlineFormat", "this is **bold** text");
+        assertTrue(result.contains("<b>bold</b>"));
+        assertFalse(result.contains("<i>"));
+    }
+
+    @Test
+    @DisplayName("minimalMarkdownToHtml wraps unordered list in ul tags")
+    void markdownUnorderedListWrapped() {
+        var result = invoke("minimalMarkdownToHtml", "- first\n- second");
+        assertTrue(result.contains("<ul>"));
+        assertTrue(result.contains("</ul>"));
+        assertTrue(result.contains("<li>first</li>"));
+        assertTrue(result.contains("<li>second</li>"));
+    }
+
+    @Test
+    @DisplayName("minimalMarkdownToHtml converts ordered list")
+    void markdownOrderedList() {
+        var result = invoke("minimalMarkdownToHtml", "1. first\n2. second");
+        assertTrue(result.contains("<ol>"));
+        assertTrue(result.contains("</ol>"));
+        assertTrue(result.contains("<li>first</li>"));
+        assertTrue(result.contains("<li>second</li>"));
+    }
+
+    @Test
+    @DisplayName("minimalMarkdownToHtml converts horizontal rule")
+    void markdownHorizontalRule() {
+        var result = invoke("minimalMarkdownToHtml", "---");
+        assertTrue(result.contains("<hr>"));
+    }
+
+    @Test
+    @DisplayName("minimalMarkdownToHtml converts blockquote")
+    void markdownBlockquote() {
+        var result = invoke("minimalMarkdownToHtml", "> important note");
+        assertTrue(result.contains("<blockquote>important note</blockquote>"));
+    }
+
+    @Test
+    @DisplayName("looksLikeMarkdown detects ordered list")
+    void looksLikeMarkdownOrderedList() {
+        assertTrue(invokeLooksLikeMarkdown("1. first item"));
+    }
+
+    @Test
+    @DisplayName("looksLikeMarkdown detects blockquote")
+    void looksLikeMarkdownBlockquote() {
+        assertTrue(invokeLooksLikeMarkdown("> note"));
+    }
 }
