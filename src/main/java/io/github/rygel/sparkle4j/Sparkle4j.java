@@ -94,6 +94,10 @@ public final class Sparkle4j {
                                             item ->
                                                     SwingUtilities.invokeLater(
                                                             () -> presentUpdate(item)));
+                        } catch (IOException e) {
+                            log.warning(
+                                    "Network error during background update check: "
+                                            + e.getMessage());
                         } catch (RuntimeException e) {
                             log.warning(
                                     "Unexpected error during background update check: "
@@ -103,7 +107,7 @@ public final class Sparkle4j {
         }
 
         @Override
-        public Optional<UpdateItem> checkNow() {
+        public Optional<UpdateItem> checkNow() throws IOException {
             if (!isCheckDue()) {
                 return Optional.empty();
             }
@@ -219,14 +223,8 @@ public final class Sparkle4j {
             return true;
         }
 
-        private @Nullable UpdateItem fetchAndParseBestUpdate() {
-            String xml;
-            try {
-                xml = fetcher.fetch(config.appcastUrl());
-            } catch (RuntimeException e) {
-                log.warning("Failed to fetch appcast: " + e.getMessage());
-                return null;
-            }
+        private @Nullable UpdateItem fetchAndParseBestUpdate() throws IOException {
+            var xml = fetcher.fetch(config.appcastUrl());
             if (xml == null) return null;
 
             prefs.setLastCheckTimestamp(Instant.now());

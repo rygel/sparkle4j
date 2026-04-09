@@ -55,7 +55,7 @@ class Sparkle4jIntegrationTest {
 
     @Test
     @DisplayName("checkNow returns empty for non-HTTPS appcast URL")
-    void checkNowRejectsHttp() {
+    void checkNowRejectsHttp() throws Exception {
         try (var instance =
                 Sparkle4j.builder()
                         .appcastUrl(appcastUrl())
@@ -125,13 +125,12 @@ class Sparkle4jIntegrationTest {
     }
 
     @Test
-    @DisplayName("fetch returns null on server error")
-    void fetchNullOnServerError() {
+    @DisplayName("fetch throws IOException on server error")
+    void fetchThrowsOnServerError() {
         wireMock.stubFor(get(urlEqualTo("/appcast.xml")).willReturn(aResponse().withStatus(500)));
 
         var fetcher = new AppcastFetcher();
-        var xml = fetcher.fetch(appcastUrl());
-        assertNull(xml);
+        assertThrows(java.io.IOException.class, () -> fetcher.fetch(appcastUrl()));
     }
 
     @Test

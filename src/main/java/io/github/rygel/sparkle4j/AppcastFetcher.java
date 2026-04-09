@@ -14,7 +14,8 @@ import java.util.logging.Logger;
 
 /**
  * Fetches the appcast XML over HTTPS with ETag/Last-Modified caching. Returns null if the feed has
- * not changed since the last fetch (304). Fails silently on network errors — callers receive null.
+ * not changed since the last fetch (304). Throws {@link IOException} on network errors or non-2xx
+ * HTTP responses.
  */
 final class AppcastFetcher {
 
@@ -31,9 +32,10 @@ final class AppcastFetcher {
     private record CacheEntry(String body, @Nullable String etag, @Nullable String lastModified) {}
 
     /**
-     * @return the XML body, or null if not modified / on error.
+     * @return the XML body, or null if not modified (304 with no cached body).
+     * @throws IOException on network error or non-2xx/304 HTTP response
      */
-    @Nullable String fetch(String url) {
+    @Nullable String fetch(String url) throws IOException {
         var cached = cache.get(url);
         var builder =
                 HttpRequest.newBuilder().uri(URI.create(url)).timeout(Duration.ofSeconds(30)).GET();
@@ -50,11 +52,10 @@ final class AppcastFetcher {
             response = client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
         } catch (IOException e) {
             log.warning("Network error fetching appcast from " + url + ": " + e.getMessage());
-            return null;
+            throw e;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.warning("Appcast fetch interrupted for " + url);
-            return null;
+            throw new IOException("Appcast fetch interrupted for " + url, e);
         }
 
         return switch (response.statusCode()) {
@@ -72,14 +73,9 @@ final class AppcastFetcher {
                 cache.put(url, new CacheEntry(body, etag, lastModified));
                 yield body;
             }
-            default -> {
-                log.warning(
-                        "Unexpected HTTP "
-                                + response.statusCode()
-                                + " fetching appcast from "
-                                + url);
-                yield null;
-            }
+            default ->
+                    throw new IOException(
+                            "HTTP " + response.statusCode() + " fetching appcast from " + url);
         };
     }
 }

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -44,7 +45,7 @@ class Sparkle4jInstanceTest {
 
     @Test
     @DisplayName("checkNow returns empty when check interval not elapsed")
-    void checkNowThrottledByInterval() {
+    void checkNowThrottledByInterval() throws IOException {
         var appName = "sparkle4j-throttle-" + System.nanoTime();
         var prefs = new UpdatePreferences(appName);
         prefs.setLastCheckTimestamp(Instant.now());
@@ -57,14 +58,14 @@ class Sparkle4jInstanceTest {
                         .checkIntervalHours(24)
                         .allowUnsignedUpdates()
                         .build()) {
-            // Should be throttled because we just set the timestamp
+            // Should be throttled: returns empty without network call, no IOException
             assertTrue(instance.checkNow().isEmpty());
         }
     }
 
     @Test
     @DisplayName("checkNow returns empty for non-HTTPS appcast URL")
-    void checkNowRejectsHttp() {
+    void checkNowRejectsHttp() throws IOException {
         try (var instance =
                 Sparkle4j.builder()
                         .appcastUrl("http://example.com/appcast.xml")
@@ -78,7 +79,7 @@ class Sparkle4jInstanceTest {
     }
 
     @Test
-    @DisplayName("check interval of 0 disables throttling")
+    @DisplayName("checkNow throws IOException when fetch fails (interval=0, not throttled)")
     void zeroIntervalDisablesThrottling() {
         var appName = "sparkle4j-interval-" + System.nanoTime();
         var prefs = new UpdatePreferences(appName);
@@ -92,18 +93,17 @@ class Sparkle4jInstanceTest {
                         .checkIntervalHours(0)
                         .allowUnsignedUpdates()
                         .build()) {
-            // With interval=0, should not be throttled — will attempt to fetch and fail
-            var result = instance.checkNow();
-            assertTrue(result.isEmpty()); // empty because fetch fails, not because throttled
+            // interval=0 means not throttled → network call is made → IOException on failure
+            assertThrows(IOException.class, instance::checkNow);
         }
     }
 
     @Test
-    @DisplayName("checkNow returns empty when fetch returns null")
-    void checkNowNullOnFetchFailure() {
+    @DisplayName("checkNow throws IOException on network failure")
+    void checkNowThrowsOnNetworkFailure() {
         try (var instance = buildInstance("1.0.0", 0)) {
-            // example.com won't serve appcast — fetch fails gracefully
-            assertTrue(instance.checkNow().isEmpty());
+            // example.com won't serve appcast — checkNow throws instead of returning empty
+            assertThrows(IOException.class, instance::checkNow);
         }
     }
 
@@ -405,19 +405,25 @@ class Sparkle4jInstanceTest {
     // --- fetchAndParseBestUpdate via reflection ---
 
     @SuppressWarnings("NullAway")
-    private UpdateItem callFetchAndParse(Object instance) {
+    private UpdateItem callFetchAndParse(Object instance) throws IOException {
         try {
             Method method = instance.getClass().getDeclaredMethod("fetchAndParseBestUpdate");
             method.setAccessible(true);
             return (UpdateItem) method.invoke(instance);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            if (e.getCause() instanceof IOException ioe) {
+                ioe.addSuppressed(e);
+                throw ioe;
+            }
+            throw new AssertionError(e);
         } catch (ReflectiveOperationException e) {
             throw new AssertionError(e);
         }
     }
 
     @Test
-    @DisplayName("fetchAndParseBestUpdate returns null on unreachable URL")
-    void fetchAndParseNullOnUnreachable() {
+    @DisplayName("fetchAndParseBestUpdate throws IOException on unreachable URL")
+    void fetchAndParseThrowsOnUnreachable() {
         var appName = "sparkle4j-unreachable-" + System.nanoTime();
         var config =
                 new Sparkle4jConfig(
@@ -432,7 +438,7 @@ class Sparkle4jInstanceTest {
                         null,
                         null);
         try (var instance = Sparkle4j.createInstance(config)) {
-            assertNull(callFetchAndParse(instance));
+            assertThrows(IOException.class, () -> callFetchAndParse(instance));
         }
     }
 

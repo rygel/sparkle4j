@@ -25,7 +25,7 @@ class AppcastFetcherTest {
 
     @Test
     @DisplayName("returns body on 200")
-    void returnsBodyOn200() {
+    void returnsBodyOn200() throws Exception {
         wireMock.stubFor(
                 get(urlEqualTo("/appcast.xml"))
                         .willReturn(
@@ -39,7 +39,7 @@ class AppcastFetcherTest {
 
     @Test
     @DisplayName("sends If-None-Match on second request and returns cached body on 304")
-    void etagCaching() {
+    void etagCaching() throws Exception {
         var etag = "\"abc123\"";
 
         wireMock.stubFor(
@@ -64,7 +64,7 @@ class AppcastFetcherTest {
 
     @Test
     @DisplayName("sends If-Modified-Since when ETag absent")
-    void lastModifiedCaching() {
+    void lastModifiedCaching() throws Exception {
         var lastModified = "Wed, 01 Jan 2026 00:00:00 GMT";
 
         wireMock.stubFor(
@@ -86,30 +86,31 @@ class AppcastFetcherTest {
     }
 
     @Test
-    @DisplayName("returns null on unexpected HTTP status")
-    void returnsNullOnError() {
+    @DisplayName("throws IOException on unexpected HTTP status")
+    void throwsOnUnexpectedStatus() {
         wireMock.stubFor(get(urlEqualTo("/appcast.xml")).willReturn(aResponse().withStatus(500)));
 
-        assertNull(fetcher.fetch(url("/appcast.xml")));
+        assertThrows(java.io.IOException.class, () -> fetcher.fetch(url("/appcast.xml")));
     }
 
     @Test
-    @DisplayName("returns null on 404")
-    void returnsNullOn404() {
+    @DisplayName("throws IOException on 404")
+    void throwsOn404() {
         wireMock.stubFor(get(urlEqualTo("/appcast.xml")).willReturn(aResponse().withStatus(404)));
 
-        assertNull(fetcher.fetch(url("/appcast.xml")));
+        assertThrows(java.io.IOException.class, () -> fetcher.fetch(url("/appcast.xml")));
     }
 
     @Test
-    @DisplayName("returns null when server is unreachable")
-    void returnsNullOnUnreachable() {
-        assertNull(fetcher.fetch("http://localhost:1/appcast.xml"));
+    @DisplayName("throws IOException when server is unreachable")
+    void throwsOnUnreachable() {
+        assertThrows(
+                java.io.IOException.class, () -> fetcher.fetch("http://localhost:1/appcast.xml"));
     }
 
     @Test
     @DisplayName("follows redirect")
-    void followsRedirect() {
+    void followsRedirect() throws Exception {
         wireMock.stubFor(
                 get(urlEqualTo("/old-appcast.xml"))
                         .willReturn(permanentRedirect(url("/appcast.xml"))));
@@ -122,7 +123,7 @@ class AppcastFetcherTest {
 
     @Test
     @DisplayName("304 without prior cache returns null")
-    void returns304WithoutCacheReturnsNull() {
+    void returns304WithoutCacheReturnsNull() throws Exception {
         // Server returns 304 on first request (no prior cache entry)
         wireMock.stubFor(get(urlEqualTo("/appcast.xml")).willReturn(aResponse().withStatus(304)));
 
@@ -133,7 +134,7 @@ class AppcastFetcherTest {
 
     @Test
     @DisplayName("caches response without ETag or Last-Modified")
-    void cachesWithoutHeaders() {
+    void cachesWithoutHeaders() throws Exception {
         wireMock.stubFor(
                 get(urlEqualTo("/appcast.xml"))
                         .willReturn(aResponse().withStatus(200).withBody("<rss>data</rss>")));
