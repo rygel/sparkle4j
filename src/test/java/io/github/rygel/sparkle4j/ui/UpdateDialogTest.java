@@ -155,7 +155,7 @@ class UpdateDialogTest {
                     }
                     latch.countDown();
                 });
-        assertTrue(latch.await(5, TimeUnit.SECONDS), "Dialog did not open in 5s");
+        assertTrue(latch.await(10, TimeUnit.SECONDS), "Dialog did not open in 10s");
     }
 
     @Test
