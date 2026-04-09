@@ -15,8 +15,10 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.security.KeyPairGenerator;
 import java.security.Signature;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 
@@ -520,6 +522,76 @@ class Sparkle4jInstanceTest {
         assertEquals("TestApp", config.appName());
         assertNull(config.onUpdateFound());
         assertNull(config.macosAppPath());
+    }
+
+    // --- orphaned temp file cleanup ---
+
+    @Test
+    @DisplayName("orphaned temp files older than 7 days are deleted on instance creation")
+    void orphanedTempFileDeletedOnStartup() throws Exception {
+        var tmpDir = Path.of(System.getProperty("java.io.tmpdir"));
+        var staleFile = tmpDir.resolve("sparkle4j-stale-test-" + System.nanoTime() + ".exe");
+        Files.createFile(staleFile);
+        Files.setLastModifiedTime(
+                staleFile, FileTime.from(Instant.now().minus(Duration.ofDays(8))));
+
+        try (var instance = buildInstance("1.0.0", 0)) {
+            assertNotNull(instance);
+        }
+
+        assertFalse(Files.exists(staleFile), "Stale temp file should have been deleted");
+    }
+
+    @Test
+    @DisplayName("recent temp files (under 7 days) are not deleted on instance creation")
+    void recentTempFileNotDeleted() throws Exception {
+        var tmpDir = Path.of(System.getProperty("java.io.tmpdir"));
+        var recentFile = tmpDir.resolve("sparkle4j-recent-test-" + System.nanoTime() + ".exe");
+        Files.createFile(recentFile);
+        try {
+            try (var instance = buildInstance("1.0.0", 0)) {
+                assertNotNull(instance);
+            }
+            assertTrue(Files.exists(recentFile), "Recent temp file should not be deleted");
+        } finally {
+            Files.deleteIfExists(recentFile);
+        }
+    }
+
+    // --- custom downloader factory ---
+
+    @Test
+    @DisplayName("applyUpdate uses custom downloader factory when configured")
+    void applyUpdateUsesCustomDownloaderFactory() throws Exception {
+        var downloaderCalled = new java.util.concurrent.atomic.AtomicBoolean(false);
+        var fakeFile = tempDir.resolve("fake-update.exe");
+        Files.writeString(fakeFile, "fake content");
+
+        var appName = "sparkle4j-factory-" + System.nanoTime();
+        var config =
+                new Sparkle4jConfig(
+                        "https://example.com/appcast.xml",
+                        "1.0.0",
+                        null,
+                        true,
+                        0,
+                        null,
+                        appName,
+                        null,
+                        null,
+                        item -> {
+                            downloaderCalled.set(true);
+                            return progress -> fakeFile;
+                        });
+
+        @SuppressWarnings("NullAway")
+        var item = fakeUpdateItem(null);
+
+        try (var instance = Sparkle4j.createInstance(config)) {
+            instance.applyUpdate(item);
+        }
+
+        assertTrue(downloaderCalled.get(), "Custom downloader factory should have been called");
     }
 
     // --- presentUpdate with hook ---

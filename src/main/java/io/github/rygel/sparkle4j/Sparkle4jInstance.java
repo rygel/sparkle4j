@@ -1,6 +1,7 @@
 package io.github.rygel.sparkle4j;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.Optional;
 
 /**
@@ -15,8 +16,13 @@ public interface Sparkle4jInstance extends Closeable {
     /** Fire-and-forget background check. Shows dialog if an update is found. */
     void checkInBackground();
 
-    /** Blocking check. Returns the newest available update, or empty if up to date or on error. */
-    Optional<UpdateItem> checkNow();
+    /**
+     * Blocking check. Returns the newest available update, or empty if up to date, throttled, or
+     * skipped.
+     *
+     * @throws IOException if the appcast cannot be fetched due to a network or HTTP error
+     */
+    Optional<UpdateItem> checkNow() throws IOException;
 
     /** Download and apply the given item immediately (skips the check dialog). */
     void applyUpdate(UpdateItem item);
