@@ -75,6 +75,10 @@ final class ReleaseNotesPanel extends JEditorPane {
     }
 
     private static String fetchRemoteContent(String releaseNotesUrl) {
+        if (!releaseNotesUrl.startsWith("https://") && !releaseNotesUrl.startsWith("http://")) {
+            log.warning("Rejecting release notes URL with non-HTTP(S) scheme: " + releaseNotesUrl);
+            return wrapHtml(LOAD_FAILED_MSG);
+        }
         try {
             var content =
                     new String(

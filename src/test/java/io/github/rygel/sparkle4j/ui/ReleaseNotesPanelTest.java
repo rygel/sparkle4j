@@ -334,6 +334,20 @@ class ReleaseNotesPanelTest {
     }
 
     @Test
+    @DisplayName("fetchRemoteContent rejects file:// URL scheme")
+    void fetchRemoteContentRejectsFileScheme() {
+        var result = invokeFetchRemoteContent("file:///etc/passwd");
+        assertTrue(result.contains("Could not load release notes."));
+    }
+
+    @Test
+    @DisplayName("fetchRemoteContent rejects jar:// URL scheme")
+    void fetchRemoteContentRejectsJarScheme() {
+        var result = invokeFetchRemoteContent("jar:file:///evil.jar!/resource");
+        assertTrue(result.contains("Could not load release notes."));
+    }
+
+    @Test
     @DisplayName("fetchRemoteContent detects markdown by content even without .md extension")
     void fetchRemoteContentDetectsMarkdownByContent() {
         wireMock.stubFor(
