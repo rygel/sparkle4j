@@ -58,6 +58,7 @@ class UpdateDialogTest {
                 null,
                 "TestApp",
                 null,
+                null,
                 null);
     }
 

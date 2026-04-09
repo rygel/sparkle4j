@@ -4,6 +4,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.awt.Component;
 import java.nio.file.Path;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -30,6 +31,7 @@ public final class Sparkle4jBuilder {
     private String appName = Sparkle4j.resolveAppName();
     private @Nullable Predicate<UpdateItem> onUpdateFound;
     private @Nullable Path macosAppPath;
+    private @Nullable Function<UpdateItem, Downloader> downloaderFactory;
 
     Sparkle4jBuilder() {}
 
@@ -138,6 +140,19 @@ public final class Sparkle4jBuilder {
     }
 
     /**
+     * Sets a custom downloader factory. The factory is called with the selected {@link UpdateItem}
+     * and must return a {@link Downloader} that performs the actual file transfer. Use this to add
+     * custom HTTP headers, proxy settings, or authentication. If not set, the built-in {@link
+     * UpdateDownloader} is used.
+     *
+     * @param factory a function that creates a {@link Downloader} for a given update item
+     */
+    public Sparkle4jBuilder downloader(Function<UpdateItem, Downloader> factory) {
+        this.downloaderFactory = factory;
+        return this;
+    }
+
+    /**
      * Builds and returns a configured {@link Sparkle4jInstance}.
      *
      * @throws IllegalArgumentException if appcastUrl or currentVersion is blank, or if neither
@@ -166,6 +181,7 @@ public final class Sparkle4jBuilder {
                         parentComponent,
                         appName,
                         onUpdateFound,
-                        macosAppPath));
+                        macosAppPath,
+                        downloaderFactory));
     }
 }

@@ -142,6 +142,7 @@ class Sparkle4jInstanceTest {
                         null,
                         appName,
                         null,
+                        null,
                         null);
         return Sparkle4j.createInstance(config);
     }
@@ -303,6 +304,7 @@ class Sparkle4jInstanceTest {
                         null,
                         appName,
                         null,
+                        null,
                         null);
         try (var instance = Sparkle4j.createInstance(config)) {
             assertTrue(callIsCheckDue(instance));
@@ -324,6 +326,7 @@ class Sparkle4jInstanceTest {
                         24,
                         null,
                         appName,
+                        null,
                         null,
                         null);
         try (var instance = Sparkle4j.createInstance(config)) {
@@ -347,6 +350,7 @@ class Sparkle4jInstanceTest {
                         null,
                         appName,
                         null,
+                        null,
                         null);
         try (var instance = Sparkle4j.createInstance(config)) {
             assertTrue(callIsCheckDue(instance));
@@ -366,6 +370,7 @@ class Sparkle4jInstanceTest {
                         0,
                         null,
                         appName,
+                        null,
                         null,
                         null);
         try (var instance = Sparkle4j.createInstance(config)) {
@@ -389,6 +394,7 @@ class Sparkle4jInstanceTest {
                         24,
                         null,
                         appName,
+                        null,
                         null,
                         null);
         try (var instance = Sparkle4j.createInstance(config)) {
@@ -423,6 +429,7 @@ class Sparkle4jInstanceTest {
                         null,
                         appName,
                         null,
+                        null,
                         null);
         try (var instance = Sparkle4j.createInstance(config)) {
             assertNull(callFetchAndParse(instance));
@@ -453,6 +460,7 @@ class Sparkle4jInstanceTest {
                         0,
                         null,
                         appName,
+                        null,
                         null,
                         null);
 
@@ -493,6 +501,7 @@ class Sparkle4jInstanceTest {
                         12,
                         null,
                         "TestApp",
+                        null,
                         null,
                         null);
 
@@ -539,6 +548,7 @@ class Sparkle4jInstanceTest {
                             hookCalled.set(true);
                             return false;
                         },
+                        null,
                         null);
 
         @SuppressWarnings("NullAway")

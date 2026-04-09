@@ -4,6 +4,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.awt.Component;
 import java.nio.file.Path;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -20,6 +21,8 @@ import java.util.function.Predicate;
  * @param onUpdateFound Called on the EDT when an update is found, before the built-in dialog.
  *     Return false to suppress the built-in dialog and handle UI yourself.
  * @param macosAppPath macOS-only: path to the current .app bundle. Auto-resolved if null.
+ * @param downloaderFactory Factory that creates a {@link Downloader} for a given update item. Null
+ *     means use the built-in {@link UpdateDownloader}.
  */
 public record Sparkle4jConfig(
         String appcastUrl,
@@ -30,4 +33,5 @@ public record Sparkle4jConfig(
         @Nullable Component parentComponent,
         String appName,
         @Nullable Predicate<UpdateItem> onUpdateFound,
-        @Nullable Path macosAppPath) {}
+        @Nullable Path macosAppPath,
+        @Nullable Function<UpdateItem, Downloader> downloaderFactory) {}

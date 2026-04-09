@@ -123,8 +123,7 @@ public final class Sparkle4j {
         @Override
         public void applyUpdate(UpdateItem item) {
             try {
-                var tempFile =
-                        new UpdateDownloader().download(item.url(), item.length(), (a, b) -> {});
+                var tempFile = downloaderFor(item).download((a, b) -> {});
                 installUpdate(item, tempFile);
             } catch (IOException e) {
                 log.severe("Download failed in applyUpdate: " + e.getMessage());
@@ -133,6 +132,12 @@ public final class Sparkle4j {
                 Thread.currentThread().interrupt();
                 log.warning("Download interrupted in applyUpdate");
             }
+        }
+
+        private Downloader downloaderFor(UpdateItem item) {
+            var factory = config.downloaderFactory();
+            if (factory != null) return factory.apply(item);
+            return progress -> new UpdateDownloader().download(item.url(), item.length(), progress);
         }
 
         @Override
@@ -249,9 +254,7 @@ public final class Sparkle4j {
                             item,
                             this::skipVersion,
                             this::installUpdate,
-                            progress ->
-                                    new UpdateDownloader()
-                                            .download(item.url(), item.length(), progress))
+                            downloaderFor(item))
                     .show();
         }
 

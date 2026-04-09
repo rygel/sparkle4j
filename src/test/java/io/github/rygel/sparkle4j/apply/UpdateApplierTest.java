@@ -65,7 +65,8 @@ class UpdateApplierTest {
                         null,
                         "TestApp",
                         null,
-                        configPath);
+                        configPath,
+                        null);
         var applier = new UpdateApplier(config);
 
         Method method = UpdateApplier.class.getDeclaredMethod("resolveCurrentAppPath");
@@ -87,6 +88,7 @@ class UpdateApplierTest {
                         24,
                         null,
                         "TestApp",
+                        null,
                         null,
                         null);
         var applier = new UpdateApplier(config);
