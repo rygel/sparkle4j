@@ -35,7 +35,8 @@ final class WindowsApplier {
                     };
 
             log.info("Launching installer: " + args);
-            new ProcessBuilder(args).start(); // nosemgrep
+            // nosemgrep
+            new ProcessBuilder(args).start();
         } catch (IOException e) {
             log.severe("Failed to launch installer: " + e.getMessage());
         }
