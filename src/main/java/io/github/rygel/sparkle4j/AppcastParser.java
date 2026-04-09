@@ -179,9 +179,6 @@ final class AppcastParser {
     }
 
     static String currentOs() {
-        var name = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        if (name.contains("win")) return "windows";
-        if (name.contains("mac")) return "macos";
-        return "linux";
+        return Platform.currentOs();
     }
 }

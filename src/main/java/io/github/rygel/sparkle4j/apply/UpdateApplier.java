@@ -1,12 +1,12 @@
 package io.github.rygel.sparkle4j.apply;
 
+import io.github.rygel.sparkle4j.Platform;
 import io.github.rygel.sparkle4j.Sparkle4jConfig;
 import io.github.rygel.sparkle4j.UpdateItem;
 
 import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
-import java.util.Locale;
 import java.util.logging.Logger;
 
 /** Dispatches to the correct platform applier and resolves the current .app path on macOS. */
@@ -21,18 +21,11 @@ public final class UpdateApplier {
     }
 
     public void apply(UpdateItem item, Path tempFile) {
-        switch (currentOs()) {
+        switch (Platform.currentOs()) {
             case "windows" -> new WindowsApplier().apply(item, tempFile);
             case "macos" -> new MacosApplier().apply(item, tempFile, resolveCurrentAppPath());
             default -> new LinuxApplier().apply(item, tempFile);
         }
-    }
-
-    static String currentOs() {
-        var name = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        if (name.contains("win")) return "windows";
-        if (name.contains("mac")) return "macos";
-        return "linux";
     }
 
     private Path resolveCurrentAppPath() {
