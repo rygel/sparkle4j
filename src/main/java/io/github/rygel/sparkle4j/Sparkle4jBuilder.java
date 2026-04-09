@@ -24,6 +24,7 @@ public final class Sparkle4jBuilder {
     private String appcastUrl = "";
     private String currentVersion = "";
     private @Nullable String publicKey;
+    private boolean allowUnsignedUpdates;
     private int checkIntervalHours = 24;
     private @Nullable Component parentComponent;
     private String appName = Sparkle4j.resolveAppName();
@@ -56,13 +57,25 @@ public final class Sparkle4jBuilder {
     /**
      * Sets the Base64-encoded Ed25519 public key used to verify downloaded installer signatures.
      * Accepts both raw 32-byte keys (Sparkle {@code generate_keys} format) and DER-encoded X.509
-     * keys (Java format). If not set, signature verification is skipped with a warning — strongly
-     * recommended for production use.
+     * keys (Java format). <strong>Strongly recommended for production use.</strong>
      *
      * @param key Base64-encoded Ed25519 public key
      */
     public Sparkle4jBuilder publicKey(String key) {
         this.publicKey = key;
+        return this;
+    }
+
+    /**
+     * Explicitly opts out of Ed25519 signature verification. Use only in development or when
+     * distributing unsigned installers intentionally. <strong>Not recommended for production
+     * use</strong> — without signature verification, downloaded installers cannot be authenticated.
+     *
+     * <p>If neither {@link #publicKey(String)} nor this method is called, {@link #build()} will
+     * throw {@link IllegalArgumentException}.
+     */
+    public Sparkle4jBuilder allowUnsignedUpdates() {
+        this.allowUnsignedUpdates = true;
         return this;
     }
 
@@ -127,7 +140,8 @@ public final class Sparkle4jBuilder {
     /**
      * Builds and returns a configured {@link Sparkle4jInstance}.
      *
-     * @throws IllegalArgumentException if appcastUrl or currentVersion is blank
+     * @throws IllegalArgumentException if appcastUrl or currentVersion is blank, or if neither
+     *     {@link #publicKey(String)} nor {@link #allowUnsignedUpdates()} has been called
      */
     public Sparkle4jInstance build() {
         if (appcastUrl == null || appcastUrl.isBlank()) {
@@ -136,11 +150,18 @@ public final class Sparkle4jBuilder {
         if (currentVersion == null || currentVersion.isBlank()) {
             throw new IllegalArgumentException("currentVersion is required");
         }
+        if (publicKey == null && !allowUnsignedUpdates) {
+            throw new IllegalArgumentException(
+                    "publicKey is required for signature verification. "
+                            + "Call allowUnsignedUpdates() to explicitly opt out (not recommended"
+                            + " for production).");
+        }
         return Sparkle4j.createInstance(
                 new Sparkle4jConfig(
                         appcastUrl,
                         currentVersion,
                         publicKey,
+                        allowUnsignedUpdates,
                         checkIntervalHours,
                         parentComponent,
                         appName,

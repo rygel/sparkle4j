@@ -1,7 +1,5 @@
 package io.github.rygel.sparkle4j;
 
-import org.jspecify.annotations.Nullable;
-
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,8 +15,7 @@ import java.util.logging.Logger;
 /**
  * Verifies Ed25519 signatures on downloaded files.
  *
- * <p>Requires Java 15+ (EdDSA available in java.security since JEP 339). If the public key is null,
- * verification is skipped with a warning.
+ * <p>Requires Java 15+ (EdDSA available in java.security since JEP 339).
  *
  * <p>Accepts both raw 32-byte Ed25519 keys (Sparkle format) and DER-encoded X.509
  * SubjectPublicKeyInfo (44 bytes, standard Java format).
@@ -33,22 +30,17 @@ final class SignatureVerifier {
         0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00
     };
 
-    private final @Nullable String publicKeyBase64;
+    private final String publicKeyBase64;
 
-    SignatureVerifier(@Nullable String publicKeyBase64) {
+    SignatureVerifier(String publicKeyBase64) {
         this.publicKeyBase64 = publicKeyBase64;
     }
 
     /**
-     * Returns true if the file's signature is valid (or verification is disabled). Returns false if
-     * the signature is invalid or an error occurs.
+     * Returns true if the file's Ed25519 signature is valid. Returns false if the signature is
+     * invalid or a crypto/IO error occurs.
      */
     boolean verify(Path file, String signatureBase64) {
-        if (publicKeyBase64 == null) {
-            log.warning("No public key configured — Ed25519 signature verification skipped");
-            return true;
-        }
-
         try {
             var rawKeyBytes = Base64.getDecoder().decode(publicKeyBase64);
             var signatureBytes = Base64.getDecoder().decode(signatureBase64);

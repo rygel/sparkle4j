@@ -50,7 +50,15 @@ class UpdateDialogTest {
 
     private Sparkle4jConfig config() {
         return new Sparkle4jConfig(
-                "https://example.com/appcast.xml", "1.0.0", null, 0, null, "TestApp", null, null);
+                "https://example.com/appcast.xml",
+                "1.0.0",
+                null,
+                true,
+                0,
+                null,
+                "TestApp",
+                null,
+                null);
     }
 
     @SuppressWarnings("NullAway")

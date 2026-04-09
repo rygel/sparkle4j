@@ -24,12 +24,23 @@ class Sparkle4jBuilderTest {
     }
 
     @Test
-    @DisplayName("build() succeeds with required fields only")
-    void buildsWithRequiredFields() {
+    @DisplayName("build() throws when neither publicKey nor allowUnsignedUpdates is set")
+    void throwsWhenNeitherPublicKeyNorAllowUnsigned() {
+        var builder =
+                Sparkle4j.builder()
+                        .appcastUrl("https://example.com/appcast.xml")
+                        .currentVersion("1.0.0");
+        assertThrows(IllegalArgumentException.class, builder::build);
+    }
+
+    @Test
+    @DisplayName("build() succeeds when allowUnsignedUpdates is set without publicKey")
+    void buildsWithAllowUnsignedUpdates() {
         try (var instance =
                 Sparkle4j.builder()
                         .appcastUrl("https://example.com/appcast.xml")
                         .currentVersion("1.0.0")
+                        .allowUnsignedUpdates()
                         .build()) {
             assertNotNull(instance);
         }
@@ -64,6 +75,7 @@ class Sparkle4jBuilderTest {
                         .currentVersion("1.0.0")
                         .appName("TestApp")
                         .checkIntervalHours(0)
+                        .allowUnsignedUpdates()
                         .build()) {
             assertInstanceOf(Sparkle4jInstance.class, instance);
         }

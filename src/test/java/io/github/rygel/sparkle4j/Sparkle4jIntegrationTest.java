@@ -62,6 +62,7 @@ class Sparkle4jIntegrationTest {
                         .currentVersion("1.0.0")
                         .appName("sparkle4j-integration-test")
                         .checkIntervalHours(0)
+                        .allowUnsignedUpdates()
                         .build()) {
             assertTrue(instance.checkNow().isEmpty());
         }

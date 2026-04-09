@@ -63,7 +63,7 @@ public final class Sparkle4j {
         private final UpdatePreferences prefs;
         private final AppcastFetcher fetcher;
         private final AppcastParser parser;
-        private final SignatureVerifier verifier;
+        private final @Nullable SignatureVerifier verifier;
         private final UpdateApplier applier;
 
         private final java.util.concurrent.ExecutorService executor =
@@ -79,7 +79,8 @@ public final class Sparkle4j {
             this.prefs = new UpdatePreferences(config.appName());
             this.fetcher = new AppcastFetcher();
             this.parser = new AppcastParser();
-            this.verifier = new SignatureVerifier(config.publicKey());
+            var key = config.publicKey();
+            this.verifier = key != null ? new SignatureVerifier(key) : null;
             this.applier = new UpdateApplier(config);
         }
 
@@ -153,19 +154,46 @@ public final class Sparkle4j {
         }
 
         void installUpdate(UpdateItem item, java.nio.file.Path tempFile) {
-            if (item.edSignature() != null && !verifier.verify(tempFile, item.edSignature())) {
-                log.severe(
-                        "Signature verification failed for "
-                                + item.version()
-                                + " — aborting update");
-                try {
-                    Files.deleteIfExists(tempFile);
-                } catch (IOException ignored) {
+            if (config.publicKey() != null) {
+                // Key configured — signature must be present and valid.
+                if (item.edSignature() == null) {
+                    log.severe(
+                            "Update "
+                                    + item.version()
+                                    + " has no Ed25519 signature but a public key is configured"
+                                    + " — aborting update");
+                    try {
+                        Files.deleteIfExists(tempFile);
+                    } catch (IOException ignored) {
+                    }
+                    showErrorDialog(
+                            "The update could not be verified (no signature provided). "
+                                    + "It has been discarded for your safety.",
+                            "Verification Failed");
+                    return;
                 }
-                showErrorDialog(
-                        "The update could not be verified. It has been discarded for your safety.",
-                        "Verification Failed");
-                return;
+                if (!java.util.Objects.requireNonNull(verifier)
+                        .verify(tempFile, item.edSignature())) {
+                    log.severe(
+                            "Signature verification failed for "
+                                    + item.version()
+                                    + " — aborting update");
+                    try {
+                        Files.deleteIfExists(tempFile);
+                    } catch (IOException ignored) {
+                    }
+                    showErrorDialog(
+                            "The update could not be verified. It has been discarded for your"
+                                    + " safety.",
+                            "Verification Failed");
+                    return;
+                }
+            } else {
+                // allowUnsignedUpdates — warn and proceed.
+                log.warning(
+                        "Installing update "
+                                + item.version()
+                                + " without signature verification (allowUnsignedUpdates is set)");
             }
             applier.apply(item, tempFile);
         }

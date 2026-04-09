@@ -59,16 +59,6 @@ class SignatureVerifierTest {
     }
 
     @Test
-    @DisplayName("null public key skips verification and returns true")
-    void nullKeySkipsVerification() throws Exception {
-        var file = tempDir.resolve("test-file");
-        Files.write(file, "content".getBytes(StandardCharsets.UTF_8));
-
-        var verifier = new SignatureVerifier(null);
-        assertTrue(verifier.verify(file, "ignored-signature"));
-    }
-
-    @Test
     @DisplayName("invalid base64 key returns false")
     void invalidBase64Key() throws Exception {
         var file = tempDir.resolve("test-file");

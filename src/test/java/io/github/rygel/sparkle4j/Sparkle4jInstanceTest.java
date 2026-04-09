@@ -30,20 +30,13 @@ class Sparkle4jInstanceTest {
 
     @TempDir Path tempDir;
 
-    @SuppressWarnings("NullAway")
     private Sparkle4jInstance buildInstance(String currentVersion, int intervalHours) {
-        return buildInstance(currentVersion, intervalHours, null);
-    }
-
-    @SuppressWarnings("NullAway")
-    private Sparkle4jInstance buildInstance(
-            String currentVersion, int intervalHours, String publicKey) {
         return Sparkle4j.builder()
                 .appcastUrl("https://example.com/appcast.xml")
                 .currentVersion(currentVersion)
                 .appName("sparkle4j-instance-test-" + System.nanoTime())
                 .checkIntervalHours(intervalHours)
-                .publicKey(publicKey)
+                .allowUnsignedUpdates()
                 .build();
     }
 
@@ -62,6 +55,7 @@ class Sparkle4jInstanceTest {
                         .currentVersion("1.0.0")
                         .appName(appName)
                         .checkIntervalHours(24)
+                        .allowUnsignedUpdates()
                         .build()) {
             // Should be throttled because we just set the timestamp
             assertTrue(instance.checkNow().isEmpty());
@@ -77,6 +71,7 @@ class Sparkle4jInstanceTest {
                         .currentVersion("1.0.0")
                         .appName("sparkle4j-http-" + System.nanoTime())
                         .checkIntervalHours(0)
+                        .allowUnsignedUpdates()
                         .build()) {
             assertTrue(instance.checkNow().isEmpty());
         }
@@ -95,6 +90,7 @@ class Sparkle4jInstanceTest {
                         .currentVersion("1.0.0")
                         .appName(appName)
                         .checkIntervalHours(0)
+                        .allowUnsignedUpdates()
                         .build()) {
             // With interval=0, should not be throttled — will attempt to fetch and fail
             var result = instance.checkNow();
@@ -123,6 +119,7 @@ class Sparkle4jInstanceTest {
                         .currentVersion("1.0.0")
                         .appName(appName)
                         .checkIntervalHours(0)
+                        .allowUnsignedUpdates()
                         .build()) {
             instance.skipVersion("2.0.0");
 
@@ -140,6 +137,7 @@ class Sparkle4jInstanceTest {
                         "https://example.com/appcast.xml",
                         "1.0.0",
                         publicKey,
+                        false,
                         0,
                         null,
                         appName,
@@ -218,25 +216,19 @@ class Sparkle4jInstanceTest {
 
     @SuppressWarnings("NullAway")
     @Test
-    @DisplayName("null signature means no verification needed")
-    void nullSignatureSkipsVerification() {
-        // When edSignature is null, installUpdate skips the verify call entirely
-        // and proceeds to applier.apply(). Verified by checking the condition in code:
-        // if (item.edSignature() != null && !verifier.verify(...))
-        var item = fakeUpdateItem(null);
-        assertNull(item.edSignature());
-    }
-
-    @SuppressWarnings("NullAway")
-    @Test
-    @DisplayName("null public key causes verifier to skip verification")
-    void nullPublicKeySkipsVerification() throws Exception {
-        var content = "anything".getBytes(StandardCharsets.UTF_8);
+    @DisplayName("null signature with key configured aborts update")
+    void nullSignatureWithKeyAbortsUpdate() throws Exception {
+        var keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        var publicKeyBase64 = Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded());
         var file = tempDir.resolve("update.exe");
-        Files.write(file, content);
+        Files.write(file, "content".getBytes(StandardCharsets.UTF_8));
 
-        var verifier = new SignatureVerifier(null);
-        assertTrue(verifier.verify(file, "ignored"));
+        var item = fakeUpdateItem(null); // no signature
+        var instance = createInstanceImpl(publicKeyBase64);
+        callInstallUpdate(instance, item, file);
+
+        // File must be deleted and no exception thrown
+        assertFalse(Files.exists(file));
     }
 
     // --- Static helpers ---
@@ -278,6 +270,7 @@ class Sparkle4jInstanceTest {
                         .appcastUrl("https://example.com/appcast.xml")
                         .currentVersion("1.0.0")
                         .appName("sparkle4j-hook-" + System.nanoTime())
+                        .allowUnsignedUpdates()
                         .onUpdateFound(item -> false)
                         .build()) {
             assertNotNull(instance);
@@ -305,6 +298,7 @@ class Sparkle4jInstanceTest {
                         "https://example.com/appcast.xml",
                         "1.0.0",
                         null,
+                        true,
                         24,
                         null,
                         appName,
@@ -326,6 +320,7 @@ class Sparkle4jInstanceTest {
                         "https://example.com/appcast.xml",
                         "1.0.0",
                         null,
+                        true,
                         24,
                         null,
                         appName,
@@ -347,6 +342,7 @@ class Sparkle4jInstanceTest {
                         "https://example.com/appcast.xml",
                         "1.0.0",
                         null,
+                        true,
                         0,
                         null,
                         appName,
@@ -366,6 +362,7 @@ class Sparkle4jInstanceTest {
                         "http://example.com/appcast.xml",
                         "1.0.0",
                         null,
+                        true,
                         0,
                         null,
                         appName,
@@ -388,6 +385,7 @@ class Sparkle4jInstanceTest {
                         "https://example.com/appcast.xml",
                         "1.0.0",
                         null,
+                        true,
                         24,
                         null,
                         appName,
@@ -420,6 +418,7 @@ class Sparkle4jInstanceTest {
                         "https://localhost:1/appcast.xml",
                         "1.0.0",
                         null,
+                        true,
                         0,
                         null,
                         appName,
@@ -450,6 +449,7 @@ class Sparkle4jInstanceTest {
                         "https://example.com/appcast.xml",
                         "1.0.0",
                         publicKeyBase64,
+                        false,
                         0,
                         null,
                         appName,
@@ -489,6 +489,7 @@ class Sparkle4jInstanceTest {
                         "https://example.com/appcast.xml",
                         "1.0.0",
                         "key",
+                        false,
                         12,
                         null,
                         "TestApp",
@@ -498,6 +499,7 @@ class Sparkle4jInstanceTest {
         assertEquals("https://example.com/appcast.xml", config.appcastUrl());
         assertEquals("1.0.0", config.currentVersion());
         assertEquals("key", config.publicKey());
+        assertFalse(config.allowUnsignedUpdates());
         assertEquals(12, config.checkIntervalHours());
         assertNull(config.parentComponent());
         assertEquals("TestApp", config.appName());
@@ -529,6 +531,7 @@ class Sparkle4jInstanceTest {
                         "https://example.com/appcast.xml",
                         "1.0.0",
                         null,
+                        true,
                         0,
                         null,
                         appName,
