@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
@@ -58,6 +59,7 @@ public final class Sparkle4j {
     private static final class Sparkle4jInstanceImpl implements Sparkle4jInstance {
 
         private static final Logger log = Logger.getLogger(Sparkle4jInstanceImpl.class.getName());
+        private static final long CHECK_TIMEOUT_SECONDS = 60;
 
         private final Sparkle4jConfig config;
         private final UpdatePreferences prefs;
@@ -74,6 +76,14 @@ public final class Sparkle4j {
                             return t;
                         });
 
+        private final ScheduledExecutorService watchdog =
+                Executors.newSingleThreadScheduledExecutor(
+                        r -> {
+                            var t = new Thread(r, "sparkle4j-watchdog");
+                            t.setDaemon(true);
+                            return t;
+                        });
+
         Sparkle4jInstanceImpl(Sparkle4jConfig config) {
             this.config = config;
             this.prefs = new UpdatePreferences(config.appName());
@@ -86,24 +96,37 @@ public final class Sparkle4j {
 
         @Override
         public void checkInBackground() {
-            executor.submit(
+            var future =
+                    executor.submit(
+                            () -> {
+                                try {
+                                    checkNow()
+                                            .ifPresent(
+                                                    item ->
+                                                            SwingUtilities.invokeLater(
+                                                                    () -> presentUpdate(item)));
+                                } catch (IOException e) {
+                                    log.warning(
+                                            "Network error during background update check: "
+                                                    + e.getMessage());
+                                } catch (RuntimeException e) {
+                                    log.warning(
+                                            "Unexpected error during background update check: "
+                                                    + e.getMessage());
+                                }
+                            });
+            watchdog.schedule(
                     () -> {
-                        try {
-                            checkNow()
-                                    .ifPresent(
-                                            item ->
-                                                    SwingUtilities.invokeLater(
-                                                            () -> presentUpdate(item)));
-                        } catch (IOException e) {
+                        if (!future.isDone()) {
                             log.warning(
-                                    "Network error during background update check: "
-                                            + e.getMessage());
-                        } catch (RuntimeException e) {
-                            log.warning(
-                                    "Unexpected error during background update check: "
-                                            + e.getMessage());
+                                    "Background update check timed out after "
+                                            + CHECK_TIMEOUT_SECONDS
+                                            + "s — cancelling");
+                            future.cancel(true);
                         }
-                    });
+                    },
+                    CHECK_TIMEOUT_SECONDS,
+                    TimeUnit.SECONDS);
         }
 
         @Override
@@ -151,6 +174,7 @@ public final class Sparkle4j {
 
         @Override
         public void close() {
+            watchdog.shutdown();
             executor.shutdown();
             try {
                 if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
