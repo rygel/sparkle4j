@@ -12,6 +12,7 @@ import javax.xml.parsers.ParserConfigurationException;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -92,6 +93,7 @@ public final class Sparkle4j {
             var key = config.publicKey();
             this.verifier = key != null ? new SignatureVerifier(key) : null;
             this.applier = new UpdateApplier(config);
+            cleanupOrphanedTempFiles();
         }
 
         @Override
@@ -186,7 +188,7 @@ public final class Sparkle4j {
             }
         }
 
-        void installUpdate(UpdateItem item, java.nio.file.Path tempFile) {
+        void installUpdate(UpdateItem item, Path tempFile) {
             if (config.publicKey() != null) {
                 // Key configured — signature must be present and valid.
                 if (item.edSignature() == null) {
@@ -229,6 +231,30 @@ public final class Sparkle4j {
                                 + " without signature verification (allowUnsignedUpdates is set)");
             }
             applier.apply(item, tempFile);
+        }
+
+        private void cleanupOrphanedTempFiles() {
+            var tmpDir = Path.of(System.getProperty("java.io.tmpdir"));
+            var cutoff = Instant.now().minus(Duration.ofDays(7));
+            try (var stream = Files.newDirectoryStream(tmpDir, "sparkle4j-*")) {
+                for (var file : stream) {
+                    try {
+                        if (Files.isRegularFile(file)
+                                && Files.getLastModifiedTime(file).toInstant().isBefore(cutoff)) {
+                            Files.deleteIfExists(file);
+                            log.fine("Deleted orphaned temp file: " + file);
+                        }
+                    } catch (IOException e) {
+                        log.fine(
+                                "Could not delete orphaned temp file "
+                                        + file
+                                        + ": "
+                                        + e.getMessage());
+                    }
+                }
+            } catch (IOException e) {
+                log.fine("Could not scan temp directory for orphaned files: " + e.getMessage());
+            }
         }
 
         private boolean isCheckDue() {
