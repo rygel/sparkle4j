@@ -30,6 +30,13 @@
         <developerConnection>scm:git:git@github.com:rygel/sparkle4j.git</developerConnection>
         <url>https://github.com/rygel/sparkle4j</url>
     </scm>
+    <distributionManagement>
+        <repository>
+            <id>github-rygel</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/rygel/sparkle4j</url>
+        </repository>
+    </distributionManagement>
 
     <properties>
         <!-- Java -->
