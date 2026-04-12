@@ -58,14 +58,14 @@ repositories {
 <dependency>
     <groupId>io.github.rygel</groupId>
     <artifactId>sparkle4j</artifactId>
-    <version>0.5.1</version>
+    <version>0.5.6</version>
 </dependency>
 ```
 
 **Gradle:**
 
 ```groovy
-implementation 'io.github.rygel:sparkle4j:0.5.1'
+implementation 'io.github.rygel:sparkle4j:0.5.6'
 ```
 
 ## Quick Start
