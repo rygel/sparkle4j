@@ -326,7 +326,7 @@ java -cp sparkle4j.jar io.github.rygel.sparkle4j.tools.AppcastGenerator <version
 | `SPARKLE_PRIVATE_KEY` | Yes | Base64-encoded PKCS#8 Ed25519 private key |
 | `APPCAST_BASE_URL` | Yes | Base download URL (e.g. `https://example.com/releases`) |
 | `INSTALLER_WINDOWS` | No | Path to the Windows `.exe` installer |
-| `INSTALLER_MACOS` | No | Path to the macOS `.zip` archive |
+| `INSTALLER_MACOS` | No | Path to the macOS `.zip` or `.dmg` installer |
 | `INSTALLER_LINUX` | No | Path to the Linux `.deb` or `.rpm` package |
 | `RELEASE_NOTES_URL` | No | URL to the release notes page |
 | `APP_NAME` | No | Application name (default: `"Application"`) |

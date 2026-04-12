@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
  *   <li>{@code SPARKLE_PRIVATE_KEY} — Base64-encoded PKCS#8 Ed25519 private key
  *   <li>{@code APPCAST_BASE_URL} — Base download URL
  *   <li>{@code INSTALLER_WINDOWS} — Path to the Windows .exe installer
- *   <li>{@code INSTALLER_MACOS} — Path to the macOS .zip archive
+ *   <li>{@code INSTALLER_MACOS} — Path to the macOS installer (.zip or .dmg)
  *   <li>{@code INSTALLER_LINUX} — Path to the Linux .deb or .rpm package
  *   <li>{@code RELEASE_NOTES_URL} — URL to the release notes page (optional)
  *   <li>{@code APP_NAME} — Application name (optional)
@@ -103,7 +103,9 @@ public final class AppcastGenerator {
         var win = System.getenv("INSTALLER_WINDOWS");
         if (win != null) list.add(new Installer(Path.of(win), "windows", "exe"));
         var mac = System.getenv("INSTALLER_MACOS");
-        if (mac != null) list.add(new Installer(Path.of(mac), "macos", "zip"));
+        if (mac != null) {
+            list.add(new Installer(Path.of(mac), "macos", mac.endsWith(".dmg") ? "dmg" : "zip"));
+        }
         var linux = System.getenv("INSTALLER_LINUX");
         if (linux != null) {
             list.add(
@@ -201,6 +203,7 @@ public final class AppcastGenerator {
         return switch (ext) {
             case "exe" -> "application/octet-stream";
             case "zip" -> "application/zip";
+            case "dmg" -> "application/x-apple-diskimage";
             case "deb" -> "application/vnd.debian.binary-package";
             case "rpm" -> "application/x-rpm";
             default -> "application/octet-stream";
