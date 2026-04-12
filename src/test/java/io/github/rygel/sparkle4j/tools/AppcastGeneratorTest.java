@@ -118,6 +118,9 @@ class AppcastGeneratorTest {
                 "application/x-rpm",
                 invokeStatic("mimeType", new Class<?>[] {String.class}, "rpm"));
         assertEquals(
+                "application/x-apple-diskimage",
+                invokeStatic("mimeType", new Class<?>[] {String.class}, "dmg"));
+        assertEquals(
                 "application/octet-stream",
                 invokeStatic("mimeType", new Class<?>[] {String.class}, "unknown"));
     }
